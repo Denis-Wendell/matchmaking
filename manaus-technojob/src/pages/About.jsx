@@ -1,19 +1,20 @@
-function About() {
+import React from "react";
+import AboutHero from "../components/about/AboutHero";
+import Mission from "../components/about/Mission";
+import Objectives from "../components/about/Objectives";
+import Technology from "../components/about/Technology";
+import Team from "../components/about/Team";
+import AboutCta from "../components/about/AboutCta";
+
+export default function About() {
   return (
-    <div className="max-w-4xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Sobre o Manaus TechnoJob</h1>
-      <div className="bg-white p-8 rounded-lg shadow-md">
-        <p className="text-gray-600 mb-4">
-          O Manaus TechnoJob é um sistema inovador de matchmaking que conecta 
-          freelancers e empresas usando Inteligência Artificial.
-        </p>
-        <p className="text-gray-600">
-          Desenvolvido como TCC, nosso sistema analisa currículos e perfis de vagas 
-          para encontrar a combinação perfeita entre talentos e oportunidades.
-        </p>
-      </div>
-    </div>
+    <main className="bg-white text-slate-900">
+      <AboutHero />
+      <Mission />
+      <Objectives />
+      <Technology />
+      <Team />
+      <AboutCta />
+    </main>
   );
 }
-
-export default About;

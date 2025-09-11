@@ -1,9 +1,9 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
-import Navbar from "./Navbar";
-import SiteFooter from "./SiteFooter";
+import Navbar from "./Navbar";         // use o seu Navbar existente
+import SiteFooter from "./SiteFooter"; // rodapé global
 
-export default function Layout() {
+export default function RootLayout() {
   return (
     <div className="min-h-screen flex flex-col bg-white text-slate-900">
       <Navbar />
