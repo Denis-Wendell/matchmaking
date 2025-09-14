@@ -7,66 +7,57 @@ import Card from '../components/Card';
 
 function CadastroEmpresa() {
   // ===== ESTADOS DO FORMULÁRIO =====
-  // Estado para armazenar todos os dados do formulário
   const [formData, setFormData] = useState({
     // --- Informações Básicas ---
-    nomeEmpresa: '',            // Campo obrigatório
-    cnpj: '',                   // Campo obrigatório
-    emailCorporativo: '',       // Campo obrigatório
-    telefone: '',               // Campo obrigatório
-    senha: '',                  // Campo obrigatório
-    confirmarSenha: '',         // Campo obrigatório
+    nomeEmpresa: '',            
+    cnpj: '',                   
+    emailCorporativo: '',       
+    telefone: '',               
+    senha: '',                  
+    confirmarSenha: '',         
     
     // --- Endereço ---
-    enderecoCompleto: '',       // Campo obrigatório
-    cidade: '',                 // Campo obrigatório
-    estado: '',                 // Campo obrigatório (select)
-    cep: '',                    // Campo obrigatório
+    enderecoCompleto: '',       
+    cidade: '',                 
+    estado: '',                 
+    cep: '',                    
     
     // --- Informações da Empresa ---
-    setorAtuacao: '',           // Campo obrigatório (select)
-    tamanhoEmpresa: '',         // Campo obrigatório (select)
-    siteEmpresa: '',            // Campo opcional (URL)
-    descricaoEmpresa: '',       // Campo obrigatório (textarea com limite)
-    principaisBeneficios: '',   // Campo opcional
-    culturaEmpresa: '',         // Campo opcional
+    setorAtuacao: '',           
+    tamanhoEmpresa: '',         
+    siteEmpresa: '',            
+    descricaoEmpresa: '',       
+    principaisBeneficios: '',   
+    culturaEmpresa: '',         
     
     // --- Responsável pelo Cadastro ---
-    nomeResponsavel: '',        // Campo obrigatório
-    cargo: '',                  // Campo obrigatório
-    emailResponsavel: '',       // Campo opcional
-    telefoneResponsavel: ''     // Campo opcional
+    nomeResponsavel: '',        
+    cargo: '',                  
+    emailResponsavel: '',       
+    telefoneResponsavel: ''     
   });
 
-  // Estado para controlar erros de validação
   const [errors, setErrors] = useState({});
-  
-  // Estado para controlar loading do botão de envio
   const [loading, setLoading] = useState(false);
 
-  // ===== FUNÇÃO PARA ATUALIZAR DADOS =====
-  // Esta função retorna uma função que atualiza um campo específico
   const handleChange = (field) => (e) => {
-    // Atualiza o estado do formData para o campo específico
     setFormData(prev => ({
-      ...prev,                    // Mantém todos os dados anteriores
-      [field]: e.target.value     // Atualiza apenas o campo modificado
+      ...prev,                    
+      [field]: e.target.value     
     }));
     
-    // Se havia erro neste campo, remove o erro quando usuário digita
     if (errors[field]) {
       setErrors(prev => ({ 
         ...prev, 
-        [field]: ''               // Limpa o erro deste campo
+        [field]: ''               
       }));
     }
   };
 
-  // ===== FUNÇÃO DE VALIDAÇÃO =====
   const validateForm = () => {
     const newErrors = {};
 
-    // Validação de informações básicas
+    // Validação de informações básicas (campos obrigatórios para API)
     if (!formData.nomeEmpresa.trim()) {
       newErrors.nomeEmpresa = 'Nome da empresa é obrigatório';
     }
@@ -81,10 +72,6 @@ function CadastroEmpresa() {
       newErrors.emailCorporativo = 'Email inválido';
     }
     
-    if (!formData.telefone.trim()) {
-      newErrors.telefone = 'Telefone é obrigatório';
-    }
-    
     if (!formData.senha) {
       newErrors.senha = 'Senha é obrigatória';
     } else if (formData.senha.length < 6) {
@@ -95,24 +82,7 @@ function CadastroEmpresa() {
       newErrors.confirmarSenha = 'Senhas não coincidem';
     }
     
-    // Validação de endereço
-    if (!formData.enderecoCompleto.trim()) {
-      newErrors.enderecoCompleto = 'Endereço é obrigatório';
-    }
-    
-    if (!formData.cidade.trim()) {
-      newErrors.cidade = 'Cidade é obrigatória';
-    }
-    
-    if (!formData.estado) {
-      newErrors.estado = 'Estado é obrigatório';
-    }
-    
-    if (!formData.cep.trim()) {
-      newErrors.cep = 'CEP é obrigatório';
-    }
-    
-    // Validação de informações da empresa
+    // Validação de informações da empresa (campos obrigatórios para API)
     if (!formData.setorAtuacao) {
       newErrors.setorAtuacao = 'Setor de atuação é obrigatório';
     }
@@ -125,7 +95,7 @@ function CadastroEmpresa() {
       newErrors.descricaoEmpresa = 'Descrição da empresa é obrigatória';
     }
     
-    // Validação do responsável
+    // Validação do responsável (campos obrigatórios para API)
     if (!formData.nomeResponsavel.trim()) {
       newErrors.nomeResponsavel = 'Nome do responsável é obrigatório';
     }
@@ -137,18 +107,15 @@ function CadastroEmpresa() {
     return newErrors;
   };
 
-  // ===== FUNÇÃO PARA ENVIAR FORMULÁRIO =====
+  // ===== FUNÇÃO PARA ENVIAR PARA API =====
   const handleSubmit = async (e) => {
-    e.preventDefault();         // Previne reload da página
+    e.preventDefault();         
     
-    // Valida o formulário
     const validationErrors = validateForm();
     
-    // Se houver erros, exibe e para execução
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       
-      // Scroll para o primeiro erro
       const firstErrorField = document.querySelector('.border-red-500');
       if (firstErrorField) {
         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -157,40 +124,101 @@ function CadastroEmpresa() {
       return;
     }
 
-    // Inicia loading
     setLoading(true);
     
     try {
-      // Aqui você faria a chamada para sua API
-      console.log('🏢 Dados da empresa:', formData);
-      
-      // Simula chamada API (remover depois)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Sucesso
-      alert('✅ Cadastro da empresa realizado com sucesso!');
-      
-      // Limpa formulário após sucesso
-      setFormData({
-        nomeEmpresa: '', cnpj: '', emailCorporativo: '', telefone: '',
-        senha: '', confirmarSenha: '', enderecoCompleto: '', cidade: '',
-        estado: '', cep: '', setorAtuacao: '', tamanhoEmpresa: '',
-        siteEmpresa: '', descricaoEmpresa: '', principaisBeneficios: '',
-        culturaEmpresa: '', nomeResponsavel: '', cargo: '',
-        emailResponsavel: '', telefoneResponsavel: ''
+      // Preparar dados para enviar à API
+      const apiData = {
+        nome: formData.nomeEmpresa,
+        cnpj: formData.cnpj,
+        email_corporativo: formData.emailCorporativo,
+        senha: formData.senha,
+        telefone: formData.telefone || null,
+        endereco_completo: formData.enderecoCompleto || null,
+        cidade: formData.cidade || null,
+        estado: formData.estado || null,
+        cep: formData.cep || null,
+        setor_atuacao: formData.setorAtuacao,
+        tamanho_empresa: formData.tamanhoEmpresa,
+        site_empresa: formData.siteEmpresa || null,
+        descricao_empresa: formData.descricaoEmpresa,
+        principais_beneficios: formData.principaisBeneficios || null,
+        cultura_empresa: formData.culturaEmpresa || null,
+        responsavel_nome: formData.nomeResponsavel,
+        responsavel_cargo: formData.cargo,
+        responsavel_email: formData.emailResponsavel || null,
+        responsavel_telefone: formData.telefoneResponsavel || null,
+        // Arrays vazios para campos opcionais
+        areas_atuacao: [],
+        beneficios_array: formData.principaisBeneficios ? 
+          formData.principaisBeneficios.split(',').map(b => b.trim()).filter(b => b.length > 0) : [],
+        tecnologias_usadas: []
+      };
+
+      console.log('🏢 Enviando dados para API:', apiData);
+
+      // Chamada para API de cadastro de empresa
+      const response = await fetch('http://localhost:3001/api/auth/registrar-empresa', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
       });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Sucesso
+        alert('✅ Cadastro da empresa realizado com sucesso!');
+        console.log('🎉 Empresa cadastrada:', result.data);
+        
+        // Opcional: salvar token no localStorage para manter logado
+        if (result.data.token) {
+          localStorage.setItem('authToken', result.data.token);
+          localStorage.setItem('empresaData', JSON.stringify(result.data.empresa));
+          localStorage.setItem('tipoUsuario', 'empresa');
+          localStorage.setItem('isLoggedIn', 'true');
+        }
+        
+        // Limpar formulário
+        setFormData({
+          nomeEmpresa: '', cnpj: '', emailCorporativo: '', telefone: '',
+          senha: '', confirmarSenha: '', enderecoCompleto: '', cidade: '',
+          estado: '', cep: '', setorAtuacao: '', tamanhoEmpresa: '',
+          siteEmpresa: '', descricaoEmpresa: '', principaisBeneficios: '',
+          culturaEmpresa: '', nomeResponsavel: '', cargo: '',
+          emailResponsavel: '', telefoneResponsavel: ''
+        });
+        
+        // Redirecionar para dashboard de empresa
+        // window.location.href = '/match-empresa'; // ou usar React Router
+        
+      } else {
+        // Erro da API
+        console.error('❌ Erro da API:', result);
+        
+        if (result.errors && Array.isArray(result.errors)) {
+          alert('❌ Erros de validação:\n' + result.errors.join('\n'));
+        } else {
+          alert(`❌ Erro: ${result.message || 'Erro desconhecido'}`);
+        }
+      }
       
     } catch (error) {
       console.error('❌ Erro ao cadastrar empresa:', error);
-      alert('❌ Erro ao realizar cadastro. Tente novamente.');
+      
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        alert('❌ Não foi possível conectar ao servidor. Verifique se o servidor está rodando e tente novamente.');
+      } else {
+        alert('❌ Erro de conexão. Tente novamente.');
+      }
     } finally {
-      // Para loading
       setLoading(false);
     }
   };
 
-  // ===== DADOS PARA SELECTS =====
-  // Estados brasileiros para o select
+  // ===== DADOS PARA SELECTS (ATUALIZADOS PARA BACKEND) =====
   const estadosBrasil = [
     { value: 'AC', label: 'Acre' },
     { value: 'AL', label: 'Alagoas' },
@@ -221,38 +249,36 @@ function CadastroEmpresa() {
     { value: 'TO', label: 'Tocantins' }
   ];
 
-  // Opções para setor de atuação
+  // VALORES ATUALIZADOS PARA COMBINAR COM BACKEND
   const setoresAtuacao = [
-    { value: 'tecnologia', label: 'Tecnologia' },
-    { value: 'financeiro', label: 'Financeiro' },
-    { value: 'saude', label: 'Saúde' },
-    { value: 'educacao', label: 'Educação' },
-    { value: 'varejo', label: 'Varejo' },
-    { value: 'industria', label: 'Indústria' },
-    { value: 'servicos', label: 'Serviços' },
-    { value: 'consultoria', label: 'Consultoria' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'logistica', label: 'Logística' },
-    { value: 'construcao', label: 'Construção Civil' },
-    { value: 'agronegocio', label: 'Agronegócio' },
-    { value: 'outros', label: 'Outros' }
+    { value: 'Tecnologia', label: 'Tecnologia' },
+    { value: 'Financeiro', label: 'Financeiro' },
+    { value: 'Saúde', label: 'Saúde' },
+    { value: 'Educação', label: 'Educação' },
+    { value: 'Varejo', label: 'Varejo' },
+    { value: 'Indústria', label: 'Indústria' },
+    { value: 'Serviços', label: 'Serviços' },
+    { value: 'Consultoria', label: 'Consultoria' },
+    { value: 'Marketing', label: 'Marketing' },
+    { value: 'Logística', label: 'Logística' },
+    { value: 'Construção Civil', label: 'Construção Civil' },
+    { value: 'Agronegócio', label: 'Agronegócio' },
+    { value: 'Outros', label: 'Outros' }
   ];
 
-  // Opções para tamanho da empresa
+  // VALORES ATUALIZADOS PARA COMBINAR COM BACKEND
   const tamanhosEmpresa = [
-    { value: 'startup', label: 'Startup (1-10 funcionários)' },
-    { value: 'pequena', label: 'Pequena (11-50 funcionários)' },
-    { value: 'media', label: 'Média (51-200 funcionários)' },
-    { value: 'grande', label: 'Grande (201-1000 funcionários)' },
-    { value: 'multinacional', label: 'Multinacional (1000+ funcionários)' }
+    { value: 'Startup', label: 'Startup (1-10 funcionários)' },
+    { value: 'Pequena', label: 'Pequena (11-50 funcionários)' },
+    { value: 'Média', label: 'Média (51-200 funcionários)' },
+    { value: 'Grande', label: 'Grande (201-1000 funcionários)' },
+    { value: 'Multinacional', label: 'Multinacional (1000+ funcionários)' }
   ];
 
   // ===== RENDERIZAÇÃO DO COMPONENTE =====
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {/* CONTAINER COM LARGURA RESPONSIVA PARA TELAS GRANDES */}
       <div className="max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-4">
-        {/* HEADER DO FORMULÁRIO */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Cadastro da Empresa
@@ -262,14 +288,11 @@ function CadastroEmpresa() {
           </p>
         </div>
 
-        {/* FORMULÁRIO PRINCIPAL */}
         <form onSubmit={handleSubmit} className="space-y-8">
           
           {/* ===== SEÇÃO 1: INFORMAÇÕES BÁSICAS ===== */}
           <Card title="Informações Básicas" className="fade-in">
-            {/* Grid responsivo: 1 col mobile, 2 cols tablet, 3 cols desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {/* Nome da Empresa */}
               <FormField
                 label="Nome da Empresa"
                 value={formData.nomeEmpresa}
@@ -279,17 +302,15 @@ function CadastroEmpresa() {
                 required
               />
               
-              {/* CNPJ */}
               <FormField
                 label="CNPJ"
                 value={formData.cnpj}
                 onChange={handleChange('cnpj')}
-                placeholder="00.000.000/0000-00"
+                placeholder="00.000.000/0000-00 ou apenas números"
                 error={errors.cnpj}
                 required
               />
               
-              {/* Email Corporativo */}
               <FormField
                 label="E-mail Corporativo"
                 type="email"
@@ -300,34 +321,30 @@ function CadastroEmpresa() {
                 required
               />
               
-              {/* Telefone */}
               <FormField
                 label="Telefone"
                 value={formData.telefone}
                 onChange={handleChange('telefone')}
-                placeholder="(11) 99999-9999"
+                placeholder="(92) 3333-4444"
                 error={errors.telefone}
-                required
               />
               
-              {/* Senha */}
               <FormField
                 label="Senha"
                 type="password"
                 value={formData.senha}
                 onChange={handleChange('senha')}
-                placeholder="*******"
+                placeholder="Mínimo 6 caracteres"
                 error={errors.senha}
                 required
               />
               
-              {/* Confirmar Senha */}
               <FormField
                 label="Confirmar Senha"
                 type="password"
                 value={formData.confirmarSenha}
                 onChange={handleChange('confirmarSenha')}
-                placeholder="*******"
+                placeholder="Confirme sua senha"
                 error={errors.confirmarSenha}
                 required
               />
@@ -336,7 +353,6 @@ function CadastroEmpresa() {
 
           {/* ===== SEÇÃO 2: ENDEREÇO ===== */}
           <Card title="Endereço" className="fade-in">
-            {/* Endereço Completo - ocupa largura total */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
               <div className="xl:col-span-3">
                 <FormField
@@ -345,21 +361,18 @@ function CadastroEmpresa() {
                   onChange={handleChange('enderecoCompleto')}
                   placeholder="Rua, número, bairro"
                   error={errors.enderecoCompleto}
-                  required
                 />
               </div>
             </div>
             
-            {/* Cidade (2 cols), Estado, CEP */}
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
               <div className="xl:col-span-2">
                 <FormField
                   label="Cidade"
                   value={formData.cidade}
                   onChange={handleChange('cidade')}
-                  placeholder="São Paulo"
+                  placeholder="Manaus"
                   error={errors.cidade}
-                  required
                 />
               </div>
               
@@ -371,7 +384,6 @@ function CadastroEmpresa() {
                 options={estadosBrasil}
                 placeholder="Selecione"
                 error={errors.estado}
-                required
               />
               
               <FormField
@@ -380,14 +392,12 @@ function CadastroEmpresa() {
                 onChange={handleChange('cep')}
                 placeholder="00000-000"
                 error={errors.cep}
-                required
               />
             </div>
           </Card>
 
           {/* ===== SEÇÃO 3: INFORMAÇÕES DA EMPRESA ===== */}
           <Card title="Informações da Empresa" className="fade-in">
-            {/* Setor e Tamanho */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <FormField
                 label="Setor de Atuação"
@@ -420,7 +430,6 @@ function CadastroEmpresa() {
               />
             </div>
             
-            {/* Descrição da Empresa */}
             <FormField
               label="Descrição da Empresa (máx. 500 caracteres)"
               type="textarea"
@@ -432,18 +441,16 @@ function CadastroEmpresa() {
               error={errors.descricaoEmpresa}
               required
             />
-            {/* Contador de caracteres */}
             <div className="text-right text-sm text-gray-500 -mt-2">
               {formData.descricaoEmpresa.length}/500
             </div>
             
-            {/* Benefícios e Cultura */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
-                label="Principais Benefícios"
+                label="Principais Benefícios (separados por vírgula)"
                 value={formData.principaisBeneficios}
                 onChange={handleChange('principaisBeneficios')}
-                placeholder="Vale alimentação, plano de saúde, home office..."
+                placeholder="Vale alimentação, plano de saúde, home office"
               />
               
               <FormField
@@ -488,14 +495,13 @@ function CadastroEmpresa() {
                 label="Telefone do Responsável"
                 value={formData.telefoneResponsavel}
                 onChange={handleChange('telefoneResponsavel')}
-                placeholder="(11) 99999-9999"
+                placeholder="(92) 99999-9999"
               />
             </div>
           </Card>
 
           {/* ===== BOTÕES DE AÇÃO ===== */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            {/* Botão Principal de Cadastro */}
             <Button
               variant="primary"
               type="submit"
@@ -505,14 +511,13 @@ function CadastroEmpresa() {
               {loading ? 'Cadastrando...' : 'Cadastrar Empresa'}
             </Button>
             
-            {/* Botão Secundário */}
             <Button
               variant="secondary"
               type="button"
               className="w-full sm:w-auto px-12 py-3"
               onClick={() => {
-                // Aqui redirecionaria para login
                 console.log('Redirecionando para login...');
+                // Implementar redirecionamento
               }}
             >
               Já tenho conta

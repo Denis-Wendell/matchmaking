@@ -7,73 +7,64 @@ import Card from '../components/Card';
 
 function CadastroFreelancer() {
   // ===== ESTADOS DO FORMULÁRIO =====
-  // Estado para armazenar todos os dados do formulário
   const [formData, setFormData] = useState({
     // --- Informações Pessoais ---
-    nomeCompleto: '',           // Campo obrigatório
-    email: '',                  // Campo obrigatório  
-    telefone: '',               // Campo obrigatório
-    dataNascimento: '',         // Campo obrigatório
-    cpf: '',                    // Campo obrigatório
-    senha: '',                  // Campo obrigatório
-    confirmarSenha: '',         // Campo obrigatório
+    nomeCompleto: '',           
+    email: '',                  
+    telefone: '',               
+    dataNascimento: '',         
+    cpf: '',                    
+    senha: '',                  
+    confirmarSenha: '',         
     
     // --- Endereço ---
-    enderecoCompleto: '',       // Campo obrigatório
-    cidade: '',                 // Campo obrigatório
-    estado: '',                 // Campo obrigatório (select)
-    cep: '',                    // Campo obrigatório
+    enderecoCompleto: '',       
+    cidade: '',                 
+    estado: '',                 
+    cep: '',                    
     
     // --- Informações Profissionais ---
-    profissao: '',              // Campo obrigatório
-    nivelExperiencia: '',       // Campo obrigatório (select)
-    areaAtuacao: '',            // Campo obrigatório (select)
-    valorHora: '',              // Campo obrigatório
-    principaisHabilidades: '',   // Campo obrigatório (textarea)
-    idiomas: '',                // Campo opcional
-    disponibilidade: '',        // Campo opcional (select)
-    modalidadeTrabalho: '',     // Campo obrigatório (select)
-    resumoProfissional: '',     // Campo opcional (textarea com limite)
+    profissao: '',              
+    nivelExperiencia: '',       
+    areaAtuacao: '',            
+    valorHora: '',              
+    principaisHabilidades: '',   
+    idiomas: '',                
+    disponibilidade: '',        
+    modalidadeTrabalho: '',     
+    resumoProfissional: '',     
     
     // --- Formação e Experiência ---
-    formacaoAcademica: '',      // Campo opcional
-    instituicao: '',            // Campo opcional
-    anoConclusao: '',           // Campo opcional
-    certificacoes: '',          // Campo opcional
-    experienciaProfissional: '', // Campo opcional (textarea)
-    objetivosProfissionais: '', // Campo opcional (textarea com limite)
+    formacaoAcademica: '',      
+    instituicao: '',            
+    anoConclusao: '',           
+    certificacoes: '',          
+    experienciaProfissional: '', 
+    objetivosProfissionais: '', 
     
     // --- Links e Portfólio ---
-    urlPortfolio: '',           // Campo opcional (URL)
-    linkedin: '',               // Campo opcional (URL)
-    github: ''                  // Campo opcional (URL)
+    urlPortfolio: '',           
+    linkedin: '',               
+    github: ''                  
   });
 
-  // Estado para controlar erros de validação
   const [errors, setErrors] = useState({});
-  
-  // Estado para controlar loading do botão de envio
   const [loading, setLoading] = useState(false);
 
-  // ===== FUNÇÃO PARA ATUALIZAR DADOS =====
-  // Esta função retorna uma função que atualiza um campo específico
   const handleChange = (field) => (e) => {
-    // Atualiza o estado do formData para o campo específico
     setFormData(prev => ({
-      ...prev,                    // Mantém todos os dados anteriores
-      [field]: e.target.value     // Atualiza apenas o campo modificado
+      ...prev,                    
+      [field]: e.target.value     
     }));
     
-    // Se havia erro neste campo, remove o erro quando usuário digita
     if (errors[field]) {
       setErrors(prev => ({ 
         ...prev, 
-        [field]: ''               // Limpa o erro deste campo
+        [field]: ''               
       }));
     }
   };
 
-  // ===== FUNÇÃO DE VALIDAÇÃO =====
   const validateForm = () => {
     const newErrors = {};
 
@@ -88,18 +79,6 @@ function CadastroFreelancer() {
       newErrors.email = 'Email inválido';
     }
     
-    if (!formData.telefone.trim()) {
-      newErrors.telefone = 'Telefone é obrigatório';
-    }
-    
-    if (!formData.dataNascimento) {
-      newErrors.dataNascimento = 'Data de nascimento é obrigatória';
-    }
-    
-    if (!formData.cpf.trim()) {
-      newErrors.cpf = 'CPF é obrigatório';
-    }
-    
     if (!formData.senha) {
       newErrors.senha = 'Senha é obrigatória';
     } else if (formData.senha.length < 6) {
@@ -110,63 +89,31 @@ function CadastroFreelancer() {
       newErrors.confirmarSenha = 'Senhas não coincidem';
     }
     
-    // Validação de endereço
-    if (!formData.enderecoCompleto.trim()) {
-      newErrors.enderecoCompleto = 'Endereço é obrigatório';
-    }
-    
-    if (!formData.cidade.trim()) {
-      newErrors.cidade = 'Cidade é obrigatória';
-    }
-    
-    if (!formData.estado) {
-      newErrors.estado = 'Estado é obrigatório';
-    }
-    
-    if (!formData.cep.trim()) {
-      newErrors.cep = 'CEP é obrigatório';
-    }
-    
-    // Validação de informações profissionais
-    if (!formData.profissao.trim()) {
-      newErrors.profissao = 'Profissão é obrigatória';
+    // Validação de informações profissionais (campos obrigatórios para API)
+    if (!formData.areaAtuacao) {
+      newErrors.areaAtuacao = 'Área de atuação é obrigatória';
     }
     
     if (!formData.nivelExperiencia) {
       newErrors.nivelExperiencia = 'Nível de experiência é obrigatório';
     }
     
-    if (!formData.areaAtuacao) {
-      newErrors.areaAtuacao = 'Área de atuação é obrigatória';
-    }
-    
-    if (!formData.valorHora) {
-      newErrors.valorHora = 'Valor por hora é obrigatório';
-    }
-    
     if (!formData.principaisHabilidades.trim()) {
       newErrors.principaisHabilidades = 'Principais habilidades é obrigatório';
-    }
-    
-    if (!formData.modalidadeTrabalho) {
-      newErrors.modalidadeTrabalho = 'Modalidade de trabalho é obrigatória';
     }
 
     return newErrors;
   };
 
-  // ===== FUNÇÃO PARA ENVIAR FORMULÁRIO =====
+  // ===== FUNÇÃO PARA ENVIAR PARA API =====
   const handleSubmit = async (e) => {
-    e.preventDefault();         // Previne reload da página
+    e.preventDefault();         
     
-    // Valida o formulário
     const validationErrors = validateForm();
     
-    // Se houver erros, exibe e para execução
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
       
-      // Scroll para o primeiro erro
       const firstErrorField = document.querySelector('.border-red-500');
       if (firstErrorField) {
         firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -175,42 +122,102 @@ function CadastroFreelancer() {
       return;
     }
 
-    // Inicia loading
     setLoading(true);
     
     try {
-      // Aqui você faria a chamada para sua API
-      console.log('📋 Dados do freelancer:', formData);
-      
-      // Simula chamada API (remover depois)
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      // Sucesso
-      alert('✅ Cadastro realizado com sucesso!');
-      
-      // Limpa formulário após sucesso
-      setFormData({
-        nomeCompleto: '', email: '', telefone: '', dataNascimento: '',
-        cpf: '', senha: '', confirmarSenha: '', enderecoCompleto: '',
-        cidade: '', estado: '', cep: '', profissao: '', nivelExperiencia: '',
-        areaAtuacao: '', valorHora: '', principaisHabilidades: '', idiomas: '',
-        disponibilidade: '', modalidadeTrabalho: '', resumoProfissional: '',
-        formacaoAcademica: '', instituicao: '', anoConclusao: '', certificacoes: '',
-        experienciaProfissional: '', objetivosProfissionais: '', urlPortfolio: '',
-        linkedin: '', github: ''
+      // Preparar dados para enviar à API
+      const apiData = {
+        nome: formData.nomeCompleto,
+        email: formData.email,
+        senha: formData.senha,
+        telefone: formData.telefone || null,
+        cpf: formData.cpf || null,
+        data_nascimento: formData.dataNascimento || null,
+        endereco_completo: formData.enderecoCompleto || null,
+        cidade: formData.cidade || null,
+        estado: formData.estado || null,
+        cep: formData.cep || null,
+        profissao: formData.profissao || null,
+        area_atuacao: formData.areaAtuacao,
+        nivel_experiencia: formData.nivelExperiencia,
+        valor_hora: formData.valorHora ? parseFloat(formData.valorHora) : null,
+        principais_habilidades: formData.principaisHabilidades,
+        idiomas: formData.idiomas ? formData.idiomas.split(',').map(i => i.trim()) : [],
+        disponibilidade: formData.disponibilidade || null,
+        modalidade_trabalho: formData.modalidadeTrabalho || 'Remoto',
+        resumo_profissional: formData.resumoProfissional || null,
+        experiencia_profissional: formData.experienciaProfissional || null,
+        objetivos_profissionais: formData.objetivosProfissionais || null,
+        formacao_academica: formData.formacaoAcademica || null,
+        instituicao: formData.instituicao || null,
+        ano_conclusao: formData.anoConclusao ? parseInt(formData.anoConclusao) : null,
+        certificacoes: formData.certificacoes || null,
+        url_portfolio: formData.urlPortfolio || null,
+        linkedin: formData.linkedin || null,
+        github: formData.github || null,
+        // Criar array de skills a partir das principais habilidades
+        skills_array: formData.principaisHabilidades.split(',').map(skill => skill.trim()).filter(skill => skill.length > 0)
+      };
+
+      console.log('📋 Enviando dados para API:', apiData);
+
+      // Chamada para API
+      const response = await fetch('http://localhost:3001/api/auth/registrar', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(apiData),
       });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Sucesso
+        alert('✅ Cadastro realizado com sucesso!');
+        console.log('🎉 Freelancer cadastrado:', result.data);
+        
+        // Opcional: salvar token no localStorage para manter logado
+        if (result.data.token) {
+          localStorage.setItem('authToken', result.data.token);
+          localStorage.setItem('freelancerData', JSON.stringify(result.data.freelancer));
+        }
+        
+        // Limpar formulário
+        setFormData({
+          nomeCompleto: '', email: '', telefone: '', dataNascimento: '',
+          cpf: '', senha: '', confirmarSenha: '', enderecoCompleto: '',
+          cidade: '', estado: '', cep: '', profissao: '', nivelExperiencia: '',
+          areaAtuacao: '', valorHora: '', principaisHabilidades: '', idiomas: '',
+          disponibilidade: '', modalidadeTrabalho: '', resumoProfissional: '',
+          formacaoAcademica: '', instituicao: '', anoConclusao: '', certificacoes: '',
+          experienciaProfissional: '', objetivosProfissionais: '', urlPortfolio: '',
+          linkedin: '', github: ''
+        });
+        
+        // Redirecionar para dashboard ou login
+        // window.location.href = '/dashboard'; // ou usar React Router
+        
+      } else {
+        // Erro da API
+        console.error('❌ Erro da API:', result);
+        
+        if (result.errors && Array.isArray(result.errors)) {
+          alert('❌ Erros de validação:\n' + result.errors.join('\n'));
+        } else {
+          alert(`❌ Erro: ${result.message || 'Erro desconhecido'}`);
+        }
+      }
       
     } catch (error) {
       console.error('❌ Erro ao cadastrar:', error);
-      alert('❌ Erro ao realizar cadastro. Tente novamente.');
+      alert('❌ Erro de conexão. Verifique se o servidor está rodando e tente novamente.');
     } finally {
-      // Para loading
       setLoading(false);
     }
   };
 
-  // ===== DADOS PARA SELECTS =====
-  // Estados brasileiros para o select
+  // ===== DADOS PARA SELECTS (ATUALIZADOS PARA BACKEND) =====
   const estadosBrasil = [
     { value: 'AC', label: 'Acre' },
     { value: 'AL', label: 'Alagoas' },
@@ -241,49 +248,47 @@ function CadastroFreelancer() {
     { value: 'TO', label: 'Tocantins' }
   ];
 
-  // Opções para nível de experiência
+  // VALORES ATUALIZADOS PARA COMBINAR COM BACKEND
   const niveisExperiencia = [
-    { value: 'junior', label: 'Júnior' },
-    { value: 'pleno', label: 'Pleno' },
-    { value: 'senior', label: 'Sênior' },
-    { value: 'especialista', label: 'Especialista' }
+    { value: 'Junior', label: 'Júnior' },
+    { value: 'Pleno', label: 'Pleno' },
+    { value: 'Senior', label: 'Sênior' },
+    { value: 'Especialista', label: 'Especialista' }
   ];
 
-  // Opções para área de atuação
   const areasAtuacao = [
-    { value: 'tecnologia', label: 'Tecnologia' },
-    { value: 'design', label: 'Design' },
-    { value: 'marketing', label: 'Marketing' },
-    { value: 'consultoria', label: 'Consultoria' },
-    { value: 'educacao', label: 'Educação' },
-    { value: 'vendas', label: 'Vendas' },
-    { value: 'financeiro', label: 'Financeiro' },
-    { value: 'juridico', label: 'Jurídico' },
-    { value: 'recursos-humanos', label: 'Recursos Humanos' },
-    { value: 'outros', label: 'Outros' }
+    { value: 'Tecnologia', label: 'Tecnologia' },
+    { value: 'Design Gráfico', label: 'Design Gráfico' },
+    { value: 'Marketing Digital', label: 'Marketing Digital' },
+    { value: 'Consultoria', label: 'Consultoria' },
+    { value: 'Educação', label: 'Educação' },
+    { value: 'Vendas', label: 'Vendas' },
+    { value: 'Financeiro', label: 'Financeiro' },
+    { value: 'Jurídico', label: 'Jurídico' },
+    { value: 'Recursos Humanos', label: 'Recursos Humanos' },
+    { value: 'Redação', label: 'Redação' },
+    { value: 'Tradução', label: 'Tradução' },
+    { value: 'Fotografia', label: 'Fotografia' },
+    { value: 'Outros', label: 'Outros' }
   ];
 
-  // Opções para disponibilidade
   const opcoesDisponibilidade = [
-    { value: 'integral', label: 'Tempo Integral' },
-    { value: 'parcial', label: 'Meio Período' },
-    { value: 'projeto', label: 'Por Projeto' },
-    { value: 'consultoria', label: 'Consultoria' }
+    { value: 'Tempo Integral', label: 'Tempo Integral' },
+    { value: 'Meio Período', label: 'Meio Período' },
+    { value: 'Por Projeto', label: 'Por Projeto' },
+    { value: 'Consultoria', label: 'Consultoria' }
   ];
 
-  // Opções para modalidade de trabalho
   const modalidadesTrabalho = [
-    { value: 'remoto', label: 'Remoto' },
-    { value: 'presencial', label: 'Presencial' },
-    { value: 'hibrido', label: 'Híbrido' }
+    { value: 'Remoto', label: 'Remoto' },
+    { value: 'Presencial', label: 'Presencial' },
+    { value: 'Híbrido', label: 'Híbrido' }
   ];
 
   // ===== RENDERIZAÇÃO DO COMPONENTE =====
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      {/* CONTAINER COM LARGURA RESPONSIVA PARA TELAS GRANDES */}
       <div className="max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-4">
-        {/* HEADER DO FORMULÁRIO */}
         <div className="text-center mb-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             Cadastro do Freelancer
@@ -293,14 +298,11 @@ function CadastroFreelancer() {
           </p>
         </div>
 
-        {/* FORMULÁRIO PRINCIPAL */}
         <form onSubmit={handleSubmit} className="space-y-8">
           
           {/* ===== SEÇÃO 1: INFORMAÇÕES PESSOAIS ===== */}
           <Card title="Informações Pessoais" className="fade-in">
-            {/* Grid responsivo: 1 col mobile, 2 cols tablet, 3 cols desktop */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-              {/* Nome Completo */}
               <FormField
                 label="Nome Completo"
                 value={formData.nomeCompleto}
@@ -310,7 +312,6 @@ function CadastroFreelancer() {
                 required
               />
               
-              {/* Email */}
               <FormField
                 label="E-mail"
                 type="email"
@@ -321,60 +322,51 @@ function CadastroFreelancer() {
                 required
               />
               
-              {/* Telefone */}
               <FormField
                 label="Telefone"
                 value={formData.telefone}
                 onChange={handleChange('telefone')}
-                placeholder="(11) 99999-9999"
+                placeholder="(92) 99999-9999"
                 error={errors.telefone}
-                required
               />
               
-              {/* Data de Nascimento */}
               <FormField
                 label="Data de Nascimento"
                 type="date"
                 value={formData.dataNascimento}
                 onChange={handleChange('dataNascimento')}
                 error={errors.dataNascimento}
-                required
               />
               
-              {/* CPF */}
               <FormField
                 label="CPF"
                 value={formData.cpf}
                 onChange={handleChange('cpf')}
                 placeholder="000.000.000-00"
                 error={errors.cpf}
-                required
               />
               
-              {/* Senha */}
               <FormField
                 label="Senha"
                 type="password"
                 value={formData.senha}
                 onChange={handleChange('senha')}
-                placeholder="******"
+                placeholder="Mínimo 6 caracteres"
                 error={errors.senha}
                 required
               />
             </div>
             
-            {/* Confirmar Senha - Grid especial para alinhamento */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <FormField
                 label="Confirmar Senha"
                 type="password"
                 value={formData.confirmarSenha}
                 onChange={handleChange('confirmarSenha')}
-                placeholder="******"
+                placeholder="Confirme sua senha"
                 error={errors.confirmarSenha}
                 required
               />
-              {/* Espaços vazios para alinhamento em telas grandes */}
               <div className="hidden xl:block"></div>
               <div className="hidden xl:block"></div>
             </div>
@@ -382,7 +374,6 @@ function CadastroFreelancer() {
 
           {/* ===== SEÇÃO 2: ENDEREÇO ===== */}
           <Card title="Endereço" className="fade-in">
-            {/* Endereço Completo - ocupa largura total */}
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 mb-4">
               <div className="xl:col-span-3">
                 <FormField
@@ -391,12 +382,10 @@ function CadastroFreelancer() {
                   onChange={handleChange('enderecoCompleto')}
                   placeholder="Rua, número, bairro"
                   error={errors.enderecoCompleto}
-                  required
                 />
               </div>
             </div>
             
-            {/* Cidade (2 cols), Estado, CEP */}
             <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-4 gap-4">
               <div className="xl:col-span-2">
                 <FormField
@@ -405,7 +394,6 @@ function CadastroFreelancer() {
                   onChange={handleChange('cidade')}
                   placeholder="Sua cidade"
                   error={errors.cidade}
-                  required
                 />
               </div>
               
@@ -417,7 +405,6 @@ function CadastroFreelancer() {
                 options={estadosBrasil}
                 placeholder="Selecione"
                 error={errors.estado}
-                required
               />
               
               <FormField
@@ -426,14 +413,12 @@ function CadastroFreelancer() {
                 onChange={handleChange('cep')}
                 placeholder="00000-000"
                 error={errors.cep}
-                required
               />
             </div>
           </Card>
 
           {/* ===== SEÇÃO 3: INFORMAÇÕES PROFISSIONAIS ===== */}
           <Card title="Informações Profissionais" className="fade-in">
-            {/* Grid com 3 colunas em telas grandes */}
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <FormField
                 label="Profissão"
@@ -441,7 +426,6 @@ function CadastroFreelancer() {
                 onChange={handleChange('profissao')}
                 placeholder="Ex: Desenvolvedor Web, Designer, Consultor..."
                 error={errors.profissao}
-                required
               />
               
               <FormField
@@ -474,14 +458,13 @@ function CadastroFreelancer() {
                 placeholder="50"
                 min="1"
                 error={errors.valorHora}
-                required
               />
               
               <FormField
-                label="Idiomas"
+                label="Idiomas (separados por vírgula)"
                 value={formData.idiomas}
                 onChange={handleChange('idiomas')}
-                placeholder="Português (nativo), Inglês (fluente)..."
+                placeholder="Português, Inglês, Espanhol"
               />
               
               <FormField
@@ -494,13 +477,12 @@ function CadastroFreelancer() {
               />
             </div>
             
-            {/* Campos que ocupam largura total */}
             <div className="space-y-4">
               <FormField
-                label="Principais Habilidades"
+                label="Principais Habilidades (separadas por vírgula)"
                 value={formData.principaisHabilidades}
                 onChange={handleChange('principaisHabilidades')}
-                placeholder="JavaScript, React, Node.js, Python..."
+                placeholder="JavaScript, React, Node.js, Python, Figma"
                 error={errors.principaisHabilidades}
                 required
               />
@@ -514,7 +496,6 @@ function CadastroFreelancer() {
                   options={modalidadesTrabalho}
                   placeholder="Selecione"
                   error={errors.modalidadeTrabalho}
-                  required
                 />
                 <div className="hidden xl:block"></div>
                 <div className="hidden xl:block"></div>
@@ -529,7 +510,6 @@ function CadastroFreelancer() {
                 rows={4}
                 maxLength={500}
               />
-              {/* Contador de caracteres */}
               <div className="text-right text-sm text-gray-500 -mt-2">
                 {formData.resumoProfissional.length}/500
               </div>
@@ -590,7 +570,6 @@ function CadastroFreelancer() {
                 rows={3}
                 maxLength={500}
               />
-              {/* Contador de caracteres */}
               <div className="text-right text-sm text-gray-500 -mt-2">
                 {formData.objetivosProfissionais.length}/500
               </div>
@@ -628,7 +607,6 @@ function CadastroFreelancer() {
 
           {/* ===== BOTÕES DE AÇÃO ===== */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
-            {/* Botão Principal de Cadastro */}
             <Button
               variant="primary"
               type="submit"
@@ -638,14 +616,13 @@ function CadastroFreelancer() {
               {loading ? 'Cadastrando...' : 'Cadastrar Freelancer'}
             </Button>
             
-            {/* Botão Secundário */}
             <Button
               variant="secondary"
               type="button"
               className="w-full sm:w-auto px-12 py-3"
               onClick={() => {
-                // Aqui redirecionaria para login
                 console.log('Redirecionando para login...');
+                // Implementar redirecionamento
               }}
             >
               Já tenho conta
