@@ -1,7 +1,7 @@
 import React from "react";
 import { Outlet } from "react-router-dom";
 import Navbar from "./Navbar";
-import SiteFooter from "./SiteFooter";
+import Footer from "./Footer";
 
 export default function Layout() {
   return (
@@ -10,7 +10,7 @@ export default function Layout() {
       <div className="flex-1">
         <Outlet />
       </div>
-      <SiteFooter />
+      <Footer />
     </div>
   );
 }
