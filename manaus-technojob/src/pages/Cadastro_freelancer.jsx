@@ -144,7 +144,7 @@ function CadastroFreelancer() {
         principais_habilidades: formData.principaisHabilidades,
         idiomas: formData.idiomas ? formData.idiomas.split(',').map(i => i.trim()) : [],
         disponibilidade: formData.disponibilidade || null,
-        modalidade_trabalho: formData.modalidadeTrabalho || 'Remoto',
+        modalidade_trabalho: formData.modalidadeTrabalho || null,
         resumo_profissional: formData.resumoProfissional || null,
         experiencia_profissional: formData.experienciaProfissional || null,
         objetivos_profissionais: formData.objetivosProfissionais || null,
@@ -250,10 +250,10 @@ function CadastroFreelancer() {
 
   // VALORES ATUALIZADOS PARA COMBINAR COM BACKEND
   const niveisExperiencia = [
-    { value: 'Junior', label: 'Júnior' },
-    { value: 'Pleno', label: 'Pleno' },
-    { value: 'Senior', label: 'Sênior' },
-    { value: 'Especialista', label: 'Especialista' }
+    { value: 'junior', label: 'Júnior' },
+    { value: 'pleno', label: 'Pleno' },
+    { value: 'senior', label: 'Sênior' },
+    { value: 'especialista', label: 'Especialista' }
   ];
 
   const areasAtuacao = [
@@ -280,9 +280,9 @@ function CadastroFreelancer() {
   ];
 
   const modalidadesTrabalho = [
-    { value: 'Remoto', label: 'Remoto' },
-    { value: 'Presencial', label: 'Presencial' },
-    { value: 'Híbrido', label: 'Híbrido' }
+    { value: 'remoto', label: 'Remoto' },
+    { value: 'presencial', label: 'Presencial' },
+    { value: 'hibrido', label: 'Híbrido' }
   ];
 
   // ===== RENDERIZAÇÃO DO COMPONENTE =====

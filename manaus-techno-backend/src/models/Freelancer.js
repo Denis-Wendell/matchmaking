@@ -93,7 +93,7 @@ const Freelancer = sequelize.define('Freelancer', {
     },
   },
   nivel_experiencia: {
-    type: DataTypes.ENUM('Junior', 'Pleno', 'Senior', 'Especialista'),
+    type: DataTypes.ENUM('junior', 'pleno', 'senior', 'especialista'), // Em minúsculo
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Nível de experiência é obrigatório' },
@@ -123,9 +123,9 @@ const Freelancer = sequelize.define('Freelancer', {
     allowNull: true,
   },
   modalidade_trabalho: {
-    type: DataTypes.ENUM('Presencial', 'Remoto', 'Híbrido'),
+    type: DataTypes.ENUM('remoto', 'presencial', 'hibrido'),
     allowNull: true,
-    defaultValue: 'Remoto',
+    defaultValue: 'remoto', // Em minúsculo
   },
   resumo_profissional: {
     type: DataTypes.TEXT,
@@ -218,7 +218,7 @@ const Freelancer = sequelize.define('Freelancer', {
     allowNull: true,
   },
 }, {
-  tableName: 'freelancer',
+  tableName: 'freelancers',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

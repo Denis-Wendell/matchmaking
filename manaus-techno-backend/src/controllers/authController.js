@@ -1,6 +1,5 @@
 const jwt = require('jsonwebtoken');
 const Freelancer = require('../models/Freelancer');
-const Empresa = require('../models/Empresa');
 
 // Gerar token JWT
 const gerarToken = (userId) => {
@@ -45,7 +44,7 @@ const registrar = async (req, res) => {
       nivel_experiencia,
       principais_habilidades,
       skills_array: Array.isArray(skills_array) ? skills_array : [skills_array].filter(Boolean),
-      modalidade_trabalho: modalidade_trabalho || 'Remoto',
+      modalidade_trabalho: modalidade_trabalho ? modalidade_trabalho.toLowerCase() : 'remoto',
       status: 'ativo',
     });
 

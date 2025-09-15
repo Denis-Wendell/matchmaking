@@ -183,7 +183,7 @@ const Empresa = sequelize.define('Empresa', {
     allowNull: true,
   },
 }, {
-  tableName: 'empresa',
+  tableName: 'empresas',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',

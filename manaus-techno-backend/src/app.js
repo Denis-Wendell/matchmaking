@@ -9,6 +9,8 @@ const { sequelize, testConnection } = require('./config/database');
 const authRoutes = require('./routes/authRoutes');
 const freelancerRoutes = require('./routes/freelancerRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
+const vagasRoutes = require('./routes/vagasRoutes');
+
 
 // Importar modelo para sincronização
 const Freelancer = require('./models/Freelancer');
@@ -48,6 +50,7 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/freelancers', freelancerRoutes);
 app.use('/api/empresas', empresaRoutes);
+app.use('/api/vagas', vagasRoutes);
 
 // Middleware para rotas não encontradas
 app.use((req, res) => {
