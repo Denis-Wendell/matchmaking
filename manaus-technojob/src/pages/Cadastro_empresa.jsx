@@ -266,13 +266,13 @@ function CadastroEmpresa() {
     { value: 'Outros', label: 'Outros' }
   ];
 
-  // VALORES ATUALIZADOS PARA COMBINAR COM BACKEND
+  // VALORES CORRETOS DO BANCO DE DADOS
   const tamanhosEmpresa = [
-    { value: 'Startup', label: 'Startup (1-10 funcionários)' },
-    { value: 'Pequena', label: 'Pequena (11-50 funcionários)' },
-    { value: 'Média', label: 'Média (51-200 funcionários)' },
-    { value: 'Grande', label: 'Grande (201-1000 funcionários)' },
-    { value: 'Multinacional', label: 'Multinacional (1000+ funcionários)' }
+    { value: 'startup', label: 'Startup (1-10 funcionários)' },
+    { value: 'pequena', label: 'Pequena (11-50 funcionários)' },
+    { value: 'media', label: 'Média (51-200 funcionários)' },
+    { value: 'grande', label: 'Grande (201-1000 funcionários)' },
+    { value: 'multinacional', label: 'Multinacional (1000+ funcionários)' }
   ];
 
   // ===== RENDERIZAÇÃO DO COMPONENTE =====

@@ -183,7 +183,7 @@ const Empresa = sequelize.define('Empresa', {
     allowNull: true,
   },
 }, {
-  tableName: 'empresas',
+  tableName: 'empresas', // Corrigido para 'empresas'
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
@@ -196,7 +196,6 @@ const Empresa = sequelize.define('Empresa', {
     }
   },
   hooks: {
-    // Hook para criptografar senha antes de salvar
     beforeCreate: async (empresa) => {
       if (empresa.senha_hash && !empresa.senha_hash.startsWith('$2')) {
         empresa.senha_hash = await bcrypt.hash(empresa.senha_hash, 10);

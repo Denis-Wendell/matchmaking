@@ -1,5 +1,7 @@
 const jwt = require('jsonwebtoken');
 const Freelancer = require('../models/Freelancer');
+const Empresa = require('../models/Empresa');
+
 
 // Gerar token JWT
 const gerarToken = (userId) => {
@@ -44,7 +46,7 @@ const registrar = async (req, res) => {
       nivel_experiencia,
       principais_habilidades,
       skills_array: Array.isArray(skills_array) ? skills_array : [skills_array].filter(Boolean),
-      modalidade_trabalho: modalidade_trabalho ? modalidade_trabalho.toLowerCase() : 'remoto',
+      modalidade_trabalho: modalidade_trabalho || 'Remoto',
       status: 'ativo',
     });
 
@@ -226,7 +228,7 @@ const registrarEmpresa = async (req, res) => {
       estado,
       cep,
       setor_atuacao,
-      tamanho_empresa,
+      tamanho_empresa: tamanho_empresa ? tamanho_empresa.toLowerCase() : null,
       site_empresa,
       descricao_empresa,
       principais_beneficios,
@@ -238,7 +240,7 @@ const registrarEmpresa = async (req, res) => {
       areas_atuacao: Array.isArray(areas_atuacao) ? areas_atuacao : [],
       beneficios_array: Array.isArray(beneficios_array) ? beneficios_array : [],
       tecnologias_usadas: Array.isArray(tecnologias_usadas) ? tecnologias_usadas : [],
-      status: 'ativa',
+      status: 'ativo',
       verificada: false,
     });
 
