@@ -1,19 +1,133 @@
 const jwt = require('jsonwebtoken');
+const { Op } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
 const Empresa = require('../models/Empresa');
 
-
-// Gerar token JWT
-const gerarToken = (userId) => {
-  return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+// Gerar token JWT (agora suporta tipo de usuário)
+const gerarToken = (userId, tipo = null) => {
+  const payload = tipo ? { id: userId, tipo } : { id: userId };
+  return jwt.sign(payload, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
 
+// Função auxiliar para tratar erros do Sequelize
+const tratarErrosSequelize = (error, res) => {
+  console.error('Erro Sequelize:', error);
+
+  if (error.name === 'SequelizeValidationError') {
+    const errors = error.errors.map(err => err.message);
+    return res.status(400).json({
+      success: false,
+      message: 'Dados inválidos',
+      errors,
+    });
+  }
+
+  if (error.name === 'SequelizeUniqueConstraintError') {
+    const field = error.errors[0].path;
+    const message = field === 'email' || field === 'email_corporativo' 
+      ? 'Email já está cadastrado'
+      : field === 'cnpj' 
+      ? 'CNPJ já está cadastrado'
+      : 'Dados já estão cadastrados';
+    
+    return res.status(400).json({
+      success: false,
+      message,
+    });
+  }
+
+  return res.status(500).json({
+    success: false,
+    message: 'Erro interno do servidor',
+  });
+};
+
+// Função auxiliar para sanitizar arrays
+const sanitizarArray = (valor) => {
+  if (Array.isArray(valor)) return valor;
+  if (valor) return [valor].filter(Boolean);
+  return [];
+};
+
+// Função auxiliar para normalizar modalidade de trabalho
+const normalizarModalidadeTrabalho = (modalidade) => {
+  if (!modalidade) return 'remoto'; // valor padrão
+  
+  const modalidadeLower = modalidade.toLowerCase().trim();
+  
+  // Mapeamento baseado nos valores mais comuns em ENUMs brasileiros
+  const mapeamento = {
+    'remoto': 'remoto',
+    'remote': 'remoto',
+    'presencial': 'presencial', 
+    'onsite': 'presencial',
+    'local': 'presencial',
+    'hibrido': 'hibrido',
+    'híbrido': 'hibrido',
+    'hybrid': 'hibrido',
+    'misto': 'hibrido'
+  };
+  
+  return mapeamento[modalidadeLower] || 'remoto';
+};
+
+// Função auxiliar para normalizar status de empresa
+const normalizarStatusEmpresa = (status) => {
+  if (!status) return 'ativo'; // valor padrão
+  
+  const statusLower = status.toLowerCase().trim();
+  
+  // Mapeamento baseado nos valores reais do ENUM: ativo, inativo, pausado, pendente
+  const mapeamento = {
+    'ativo': 'ativo',
+    'ativa': 'ativo',
+    'active': 'ativo',
+    'inativo': 'inativo',
+    'inativa': 'inativo',
+    'inactive': 'inativo',
+    'pausado': 'pausado',
+    'pausada': 'pausado',
+    'paused': 'pausado',
+    'pendente': 'pendente',
+    'pending': 'pendente'
+  };
+  
+  return mapeamento[statusLower] || 'ativo';
+};
+
+// Função auxiliar para normalizar tamanho de empresa
+const normalizarTamanhoEmpresa = (tamanho) => {
+  if (!tamanho) return 'pequena'; // valor padrão
+  
+  const tamanhoLower = tamanho.toLowerCase().trim();
+  
+  // Mapeamento baseado nos valores reais do ENUM: startup, pequena, media, grande, multinacional
+  const mapeamento = {
+    'startup': 'startup',
+    'pequena': 'pequena',
+    'pequeno': 'pequena',
+    'small': 'pequena',
+    'media': 'media',
+    'média': 'media',
+    'medio': 'media',
+    'médio': 'media',
+    'medium': 'media',
+    'grande': 'grande',
+    'big': 'grande',
+    'large': 'grande',
+    'multinacional': 'multinacional',
+    'multinational': 'multinacional'
+  };
+  
+  return mapeamento[tamanhoLower] || 'pequena';
+};
+
 // Registrar freelancer
-const registrar = async (req, res) => {
+const registrarFreelancer = async (req, res) => {
   try {
-    console.log('📝 Dados recebidos no registro:', req.body);
+    console.log('📝 Dados recebidos no registro do freelancer:', req.body);
     
     const {
       nome,
@@ -45,13 +159,13 @@ const registrar = async (req, res) => {
       area_atuacao,
       nivel_experiencia,
       principais_habilidades,
-      skills_array: Array.isArray(skills_array) ? skills_array : [skills_array].filter(Boolean),
-      modalidade_trabalho: modalidade_trabalho || 'Remoto',
+      skills_array: sanitizarArray(skills_array),
+      modalidade_trabalho: normalizarModalidadeTrabalho(modalidade_trabalho),
       status: 'ativo',
     });
 
     // Gerar token
-    const token = gerarToken(novoFreelancer.id);
+    const token = gerarToken(novoFreelancer.id, 'freelancer');
 
     res.status(201).json({
       success: true,
@@ -59,114 +173,14 @@ const registrar = async (req, res) => {
       data: {
         freelancer: novoFreelancer,
         token,
+        tipo: 'freelancer',
       },
     });
 
   } catch (error) {
-    console.error('Erro no registro:', error);
-
-    // Tratar erros de validação do Sequelize
-    if (error.name === 'SequelizeValidationError') {
-      const errors = error.errors.map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Dados inválidos',
-        errors,
-      });
-    }
-
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Email já está cadastrado',
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-    });
+    console.error('Erro no registro do freelancer:', error);
+    return tratarErrosSequelize(error, res);
   }
-};
-
-// Login do freelancer
-const login = async (req, res) => {
-  try {
-    const { email, senha } = req.body;
-
-    // Validações básicas
-    if (!email || !senha) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email e senha são obrigatórios',
-      });
-    }
-
-    // Buscar freelancer (incluindo senha para verificação)
-    const freelancer = await Freelancer.scope('withPassword').findOne({ 
-      where: { email },
-    });
-
-    if (!freelancer) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciais inválidas',
-      });
-    }
-
-    // Verificar se freelancer está ativo
-    if (freelancer.status !== 'ativo') {
-      return res.status(401).json({
-        success: false,
-        message: 'Conta desativada ou pendente',
-      });
-    }
-
-    // Verificar senha
-    const senhaValida = await freelancer.verificarSenha(senha);
-    if (!senhaValida) {
-      return res.status(401).json({
-        success: false,
-        message: 'Credenciais inválidas',
-      });
-    }
-
-    // Atualizar último login
-    await freelancer.atualizarUltimoLogin();
-
-    // Gerar token
-    const token = gerarToken(freelancer.id);
-
-    // Remover senha da resposta
-    const freelancerSemSenha = freelancer.toJSON();
-
-    res.json({
-      success: true,
-      message: 'Login realizado com sucesso',
-      data: {
-        freelancer: freelancerSemSenha,
-        token,
-      },
-    });
-
-  } catch (error) {
-    console.error('Erro no login:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-    });
-  }
-};
-
-// Verificar token (rota protegida de teste)
-const verificarAuth = async (req, res) => {
-  res.json({
-    success: true,
-    message: 'Token válido',
-    data: {
-      freelancer: req.freelancer,
-    },
-  });
 };
 
 // Registrar empresa
@@ -202,7 +216,7 @@ const registrarEmpresa = async (req, res) => {
     // Verificar se empresa já existe (por email ou CNPJ)
     const empresaExistente = await Empresa.findOne({ 
       where: {
-        [require('sequelize').Op.or]: [
+        [Op.or]: [
           { email_corporativo },
           { cnpj }
         ]
@@ -228,7 +242,7 @@ const registrarEmpresa = async (req, res) => {
       estado,
       cep,
       setor_atuacao,
-      tamanho_empresa: tamanho_empresa ? tamanho_empresa.toLowerCase() : null,
+      tamanho_empresa: normalizarTamanhoEmpresa(tamanho_empresa),
       site_empresa,
       descricao_empresa,
       principais_beneficios,
@@ -237,15 +251,15 @@ const registrarEmpresa = async (req, res) => {
       responsavel_cargo,
       responsavel_email,
       responsavel_telefone,
-      areas_atuacao: Array.isArray(areas_atuacao) ? areas_atuacao : [],
-      beneficios_array: Array.isArray(beneficios_array) ? beneficios_array : [],
-      tecnologias_usadas: Array.isArray(tecnologias_usadas) ? tecnologias_usadas : [],
-      status: 'ativo',
+      areas_atuacao: sanitizarArray(areas_atuacao),
+      beneficios_array: sanitizarArray(beneficios_array),
+      tecnologias_usadas: sanitizarArray(tecnologias_usadas),
+      status: normalizarStatusEmpresa('ativo'), // Usar função de normalização
       verificada: false,
     });
 
     // Gerar token
-    const token = gerarToken(novaEmpresa.id);
+    const token = gerarToken(novaEmpresa.id, 'empresa');
 
     res.status(201).json({
       success: true,
@@ -259,33 +273,12 @@ const registrarEmpresa = async (req, res) => {
 
   } catch (error) {
     console.error('Erro no registro da empresa:', error);
-
-    // Tratar erros de validação do Sequelize
-    if (error.name === 'SequelizeValidationError') {
-      const errors = error.errors.map(err => err.message);
-      return res.status(400).json({
-        success: false,
-        message: 'Dados inválidos',
-        errors,
-      });
-    }
-
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(400).json({
-        success: false,
-        message: 'Email ou CNPJ já está cadastrado',
-      });
-    }
-
-    res.status(500).json({
-      success: false,
-      message: 'Erro interno do servidor',
-    });
+    return tratarErrosSequelize(error, res);
   }
 };
 
 // Login unificado (freelancer ou empresa)
-const loginUnificado = async (req, res) => {
+const login = async (req, res) => {
   try {
     const { email, senha, tipo } = req.body;
 
@@ -305,17 +298,16 @@ const loginUnificado = async (req, res) => {
     }
 
     let usuario = null;
-    let tipoUsuario = tipo;
+    let emailField = tipo === 'freelancer' ? 'email' : 'email_corporativo';
 
+    // Buscar usuário baseado no tipo
     if (tipo === 'freelancer') {
-      // Buscar freelancer
       usuario = await Freelancer.scope('withPassword').findOne({ 
-        where: { email },
+        where: { [emailField]: email },
       });
     } else {
-      // Buscar empresa
       usuario = await Empresa.scope('withPassword').findOne({ 
-        where: { email_corporativo: email },
+        where: { [emailField]: email },
       });
     }
 
@@ -326,13 +318,9 @@ const loginUnificado = async (req, res) => {
       });
     }
 
-    // Verificar se está ativo
-    if (tipo === 'freelancer' && usuario.status !== 'ativo') {
-      return res.status(401).json({
-        success: false,
-        message: 'Conta desativada ou pendente',
-      });
-    } else if (tipo === 'empresa' && usuario.status !== 'ativa') {
+    // Verificar se está ativo (status normalizado)
+    const statusEsperado = tipo === 'freelancer' ? 'ativo' : normalizarStatusEmpresa('ativo');
+    if (usuario.status !== statusEsperado) {
       return res.status(401).json({
         success: false,
         message: 'Conta desativada ou pendente',
@@ -352,11 +340,7 @@ const loginUnificado = async (req, res) => {
     await usuario.atualizarUltimoLogin();
 
     // Gerar token com tipo do usuário
-    const token = jwt.sign(
-      { id: usuario.id, tipo: tipoUsuario }, 
-      process.env.JWT_SECRET, 
-      { expiresIn: process.env.JWT_EXPIRES_IN }
-    );
+    const token = gerarToken(usuario.id, tipo);
 
     // Remover senha da resposta
     const usuarioSemSenha = usuario.toJSON();
@@ -365,9 +349,9 @@ const loginUnificado = async (req, res) => {
       success: true,
       message: 'Login realizado com sucesso',
       data: {
-        [tipoUsuario]: usuarioSemSenha,
+        [tipo]: usuarioSemSenha,
         token,
-        tipo: tipoUsuario,
+        tipo,
       },
     });
 
@@ -380,10 +364,97 @@ const loginUnificado = async (req, res) => {
   }
 };
 
+// Verificar token (compatível com seu middleware existente)
+const verificarAuth = async (req, res) => {
+  try {
+    // Seu middleware define req.freelancer, req.empresa e req.tipoUsuario
+    const tipoUsuario = req.tipoUsuario;
+    const usuario = req.freelancer || req.empresa;
+    
+    if (!usuario || !tipoUsuario) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token inválido',
+      });
+    }
+    
+    res.json({
+      success: true,
+      message: 'Token válido',
+      data: {
+        [tipoUsuario]: usuario,
+        tipo: tipoUsuario,
+      },
+    });
+  } catch (error) {
+    console.error('Erro na verificação:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+    });
+  }
+};
+
+// Logout (compatível com seu middleware)
+const logout = async (req, res) => {
+  try {
+    // Se você mantiver uma blacklist de tokens, adicione aqui
+    // Por enquanto, apenas confirma o logout
+    res.json({
+      success: true,
+      message: 'Logout realizado com sucesso',
+      data: {
+        tipo: req.tipoUsuario
+      }
+    });
+  } catch (error) {
+    console.error('Erro no logout:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+    });
+  }
+};
+
+// Refresh token (compatível com seu middleware)
+const refreshToken = async (req, res) => {
+  try {
+    const tipoUsuario = req.tipoUsuario;
+    const usuario = req.freelancer || req.empresa;
+    
+    if (!usuario || !tipoUsuario) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token inválido',
+      });
+    }
+
+    // Gerar novo token
+    const novoToken = gerarToken(usuario.id, tipoUsuario);
+
+    res.json({
+      success: true,
+      message: 'Token renovado com sucesso',
+      data: {
+        token: novoToken,
+        tipo: tipoUsuario,
+      },
+    });
+
+  } catch (error) {
+    console.error('Erro no refresh token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor',
+    });
+  }
+};
+
 module.exports = {
-  registrar,
+  registrarFreelancer,
   registrarEmpresa,
   login,
-  loginUnificado,
   verificarAuth,
+  logout,
+  refreshToken,
 };

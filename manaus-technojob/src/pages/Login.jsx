@@ -3,14 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 
 export default function Login() {
   const nav = useNavigate();
-  const [perfil, setPerfil] = useState("freelancer");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [show, setShow] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const rotaCadastro = perfil === "freelancer" ? "/cadastro-freelancer" : "/cadastro-empresa";
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -32,8 +29,8 @@ export default function Login() {
     setLoading(true);
 
     try {
-      // Fazer login via API
-      const response = await fetch('http://localhost:3001/api/auth/login-unificado', {
+      // Primeiro, tentar como freelancer
+      let response = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -41,26 +38,43 @@ export default function Login() {
         body: JSON.stringify({
           email: email.toLowerCase().trim(),
           senha: senha,
-          tipo: perfil,
+          tipo: 'freelancer',
         }),
       });
 
-      const result = await response.json();
+      let result = await response.json();
+
+      // Se não encontrou como freelancer, tenta como empresa
+      if (!response.ok && response.status === 401 && result.message === 'Credenciais inválidas') {
+        response = await fetch('http://localhost:3001/api/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: email.toLowerCase().trim(),
+            senha: senha,
+            tipo: 'empresa',
+          }),
+        });
+
+        result = await response.json();
+      }
 
       if (response.ok && result.success) {
         // Login bem-sucedido
         console.log('✅ Login realizado:', result.data);
         
-        // Salvar dados no localStorage
+        // Salvar dados no localStorage baseado no tipo
         localStorage.setItem('authToken', result.data.token);
-        localStorage.setItem('freelancerData', JSON.stringify(result.data.freelancer));
+        localStorage.setItem('userType', result.data.tipo);
         localStorage.setItem('isLoggedIn', 'true');
         
-        // Redirecionar baseado no perfil
-        if (perfil === "freelancer") {
+        if (result.data.tipo === 'freelancer') {
+          localStorage.setItem('freelancerData', JSON.stringify(result.data.freelancer));
           nav("/match-vaga");
-        } else {
-          // Para empresas, você precisará implementar sistema separado
+        } else if (result.data.tipo === 'empresa') {
+          localStorage.setItem('empresaData', JSON.stringify(result.data.empresa));
           nav("/match-empresa");
         }
         
@@ -75,7 +89,11 @@ export default function Login() {
             setError("Email ou senha incorretos.");
           }
         } else if (response.status === 400) {
-          setError("Dados inválidos. Verifique o formato do email.");
+          if (result.message === 'Tipo deve ser "freelancer" ou "empresa"') {
+            setError("Erro interno. Tente novamente.");
+          } else {
+            setError("Dados inválidos. Verifique o formato do email.");
+          }
         } else if (response.status === 500) {
           setError("Erro no servidor. Tente novamente em alguns minutos.");
         } else {
@@ -113,38 +131,6 @@ export default function Login() {
               <p className="text-sm text-red-700 text-center">{error}</p>
             </div>
           )}
-
-          {/* Abas */}
-          <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setPerfil("freelancer");
-                setError("");
-              }}
-              className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
-                perfil === "freelancer"
-                  ? "bg-white shadow"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Freelancer
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setPerfil("empresa");
-                setError("");
-              }}
-              className={`rounded-lg py-2 text-sm font-semibold transition-colors ${
-                perfil === "empresa"
-                  ? "bg-white shadow"
-                  : "text-slate-600 hover:text-slate-900"
-              }`}
-            >
-              Empresa
-            </button>
-          </div>
 
           {/* Form */}
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
@@ -206,15 +192,25 @@ export default function Login() {
               {loading ? "Entrando..." : "Entrar"}
             </button>
 
-            <p className="text-center text-sm text-slate-600">
-              Não tem uma conta?{" "}
-              <Link
-                to={rotaCadastro}
-                className="font-semibold text-[#2E86FF] hover:opacity-90"
-              >
-                Cadastre-se aqui
-              </Link>
-            </p>
+            {/* Links para cadastro */}
+            <div className="text-center text-sm text-slate-600">
+              <p className="mb-2">Não tem uma conta?</p>
+              <div className="flex gap-4 justify-center">
+                <Link
+                  to="/cadastro-freelancer"
+                  className="font-semibold text-[#2E86FF] hover:opacity-90"
+                >
+                  Cadastre-se como Freelancer
+                </Link>
+                <span className="text-slate-400">•</span>
+                <Link
+                  to="/cadastro-empresa"
+                  className="font-semibold text-[#2E86FF] hover:opacity-90"
+                >
+                  Cadastre-se como Empresa
+                </Link>
+              </div>
+            </div>
 
             {/* Link para recuperar senha */}
             <p className="text-center text-sm text-slate-600">
