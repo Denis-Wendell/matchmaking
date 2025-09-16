@@ -13,6 +13,7 @@ import MatchEmpresa from "./pages/Match_empresa";
 import MatchVaga from "./pages/Match_vaga";
 import PerfilEmpresa from "./pages/Perfil_empresa";
 import PerfilFreelancer from "./pages/Perfil_freelancer";
+import Vagas_cadastrada_empresa from "./pages/vagas_cadastras_empresa";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
         <Route path="/match-vaga" element={<MatchVaga />} />
         <Route path="/perfil-empresa" element={<PerfilEmpresa />} />
         <Route path="/perfil-freelancer" element={<PerfilFreelancer />} />
+        <Route path="/vagas-cadastradas" element={<Vagas_cadastrada_empresa />} />
       </Route>
     </Routes>
   );

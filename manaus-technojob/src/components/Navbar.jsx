@@ -13,6 +13,8 @@ function Navbar() {
     { path: '/cadastro-empresa', label: 'Cadastro Empresa' },
     { path: '/cadastro-freelancer', label: 'Cadastro Freelancer' },
     { path: '/cadastro-vaga', label: 'Cadastro Vaga' },
+    { path: '/vagas-cadastradas', label: 'Vagas Cadastradas' },
+
    
   ];
 

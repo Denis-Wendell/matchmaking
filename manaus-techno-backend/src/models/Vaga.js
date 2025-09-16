@@ -11,7 +11,7 @@ const Vaga = sequelize.define('Vaga', {
     type: DataTypes.UUID,
     allowNull: true,
     references: {
-      model: 'empresa',
+      model: 'empresas', // Nome da tabela
       key: 'id',
     },
   },
@@ -31,21 +31,21 @@ const Vaga = sequelize.define('Vaga', {
     },
   },
   nivel_experiencia: {
-    type: DataTypes.ENUM('Junior', 'Pleno', 'Senior', 'Especialista'),
+    type: DataTypes.ENUM('junior', 'pleno', 'senior', 'especialista'),
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Nível de experiência é obrigatório' },
     },
   },
   tipo_contrato: {
-    type: DataTypes.ENUM('CLT', 'PJ', 'Estágio', 'Freelancer', 'Temporário'),
+    type: DataTypes.ENUM('clt', 'pj', 'estagio', 'freelancer', 'temporario'),
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Tipo de contrato é obrigatório' },
     },
   },
   modalidade_trabalho: {
-    type: DataTypes.ENUM('Presencial', 'Remoto', 'Híbrido'),
+    type: DataTypes.ENUM('presencial', 'remoto', 'hibrido'),
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Modalidade de trabalho é obrigatória' },
@@ -221,9 +221,9 @@ const Vaga = sequelize.define('Vaga', {
     defaultValue: {},
   },
   status: {
-    type: DataTypes.ENUM('ativa', 'inativa', 'pausada', 'preenchida', 'expirada'),
+    type: DataTypes.ENUM('ativo', 'inativo', 'pausado', 'pendente'),
     allowNull: true,
-    defaultValue: 'ativa',
+    defaultValue: 'ativo',
   },
   visualizacoes: {
     type: DataTypes.INTEGER,
@@ -241,5 +241,13 @@ const Vaga = sequelize.define('Vaga', {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
 });
+
+// Definir associação com Empresa
+Vaga.associate = function(models) {
+  Vaga.belongsTo(models.Empresa, {
+    foreignKey: 'empresa_id',
+    as: 'empresa'
+  });
+};
 
 module.exports = Vaga;

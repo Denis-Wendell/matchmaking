@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 require('dotenv').config();
+const { setupAssociations } = require('./models/associations'); 
+setupAssociations();
 
 // Importações dos módulos internos
 const { sequelize, testConnection } = require('./config/database');
