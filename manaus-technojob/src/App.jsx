@@ -5,7 +5,6 @@ import Layout from "./components/Layout";
 import Home from "./pages/Home";
 import About from "./pages/About";
 import Login from "./pages/Login";
-
 import CadastroEmpresa from "./pages/Cadastro_empresa";
 import CadastroFreelancer from "./pages/Cadastro_freelancer";
 import CadastroVaga from "./pages/Cadastro_vaga";
@@ -14,6 +13,8 @@ import MatchVaga from "./pages/Match_vaga";
 import PerfilEmpresa from "./pages/Perfil_empresa";
 import PerfilFreelancer from "./pages/Perfil_freelancer";
 import Vagas_cadastrada_empresa from "./pages/vagas_cadastras_empresa";
+import Minhas_candidaturas from "./pages/Minhas_candidaturas";
+
 
 export default function App() {
   return (
@@ -30,6 +31,8 @@ export default function App() {
         <Route path="/perfil-empresa" element={<PerfilEmpresa />} />
         <Route path="/perfil-freelancer" element={<PerfilFreelancer />} />
         <Route path="/vagas-cadastradas" element={<Vagas_cadastrada_empresa />} />
+        <Route path="/minhas-candidaturas" element={<Minhas_candidaturas />} />
+   
       </Route>
     </Routes>
   );

@@ -227,9 +227,14 @@ const criarVaga = async (req, res) => {
 // Listar todas as vagas ativas (público)
 const listarVagas = async (req, res) => {
   try {
+    console.log('🔍 [DEBUG] Iniciando listarVagas...');
+    console.log('🔍 [DEBUG] Query params:', req.query);
+    
     const { area, nivel, modalidade, tipo, limite = 20, pagina = 1 } = req.query;
     
-    const where = { status: 'ativa' };
+    // CORREÇÃO: Usar 'ativo' em vez de 'ativa'
+    const where = { status: 'ativo' };
+    console.log('🔍 [DEBUG] Where inicial:', where);
     
     // Filtros opcionais
     if (area) where.area_atuacao = area;
@@ -237,8 +242,13 @@ const listarVagas = async (req, res) => {
     if (modalidade) where.modalidade_trabalho = normalizarModalidadeTrabalho(modalidade);
     if (tipo) where.tipo_contrato = normalizarTipoContrato(tipo);
 
-    const offset = (pagina - 1) * limite;
+    console.log('🔍 [DEBUG] Where final:', where);
 
+    const offset = (pagina - 1) * limite;
+    console.log('🔍 [DEBUG] Offset:', offset, 'Limite:', limite);
+
+    console.log('🔍 [DEBUG] Tentando buscar vagas...');
+    
     const vagas = await Vaga.findAndCountAll({
       where,
       include: [{
@@ -252,6 +262,9 @@ const listarVagas = async (req, res) => {
       offset: parseInt(offset),
     });
 
+    console.log('✅ [DEBUG] Vagas encontradas:', vagas.count);
+    console.log('✅ [DEBUG] Primeira vaga (se existir):', vagas.rows[0]?.titulo);
+
     res.json({
       success: true,
       message: 'Vagas listadas com sucesso',
@@ -264,10 +277,19 @@ const listarVagas = async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ Erro ao listar vagas:', error);
+    console.error('❌ [ERRO DETALHADO] Nome:', error.name);
+    console.error('❌ [ERRO DETALHADO] Mensagem:', error.message);
+    console.error('❌ [ERRO DETALHADO] Stack:', error.stack);
+    
+    // Se for erro do Sequelize, mostrar mais detalhes
+    if (error.original) {
+      console.error('❌ [ERRO SQL]:', error.original);
+    }
+    
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
+      error: error.message
     });
   }
 };

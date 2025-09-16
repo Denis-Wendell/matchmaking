@@ -14,6 +14,11 @@ function Navbar() {
     { path: '/cadastro-freelancer', label: 'Cadastro Freelancer' },
     { path: '/cadastro-vaga', label: 'Cadastro Vaga' },
     { path: '/vagas-cadastradas', label: 'Vagas Cadastradas' },
+    { path: '/minhas-candidaturas', label: 'Minhas Candidaturas' },
+    
+
+
+    
 
    
   ];
