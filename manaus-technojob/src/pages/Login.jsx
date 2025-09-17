@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { performLogin } from "../utils/authUtils";
 
 export default function Login() {
   const nav = useNavigate();
@@ -65,16 +66,17 @@ export default function Login() {
         // Login bem-sucedido
         console.log('✅ Login realizado:', result.data);
         
-        // Salvar dados no localStorage baseado no tipo
-        localStorage.setItem('authToken', result.data.token);
-        localStorage.setItem('userType', result.data.tipo);
-        localStorage.setItem('isLoggedIn', 'true');
+        // Usar performLogin para salvar dados e notificar Navbar
+        performLogin(
+          result.data.tipo,
+          result.data.token,
+          result.data.tipo === 'freelancer' ? result.data.freelancer : result.data.empresa
+        );
         
+        // Redirecionar baseado no tipo
         if (result.data.tipo === 'freelancer') {
-          localStorage.setItem('freelancerData', JSON.stringify(result.data.freelancer));
           nav("/match-vaga");
         } else if (result.data.tipo === 'empresa') {
-          localStorage.setItem('empresaData', JSON.stringify(result.data.empresa));
           nav("/match-empresa");
         }
         
