@@ -1,16 +1,21 @@
+// src/pages/Vagas_cadastrada_empresa.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// componentes novos
+import CandidatosModal from '../components/CandidatosModal';
+import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 
 function Vagas_cadastrada_empresa() {
   const navigate = useNavigate();
   
-  // Estados principais
+  // ================= ESTADOS PRINCIPAIS =================
   const [vagas, setVagas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [empresaData, setEmpresaData] = useState(null);
   
-  // Estados para filtros e paginação
+  // ================= FILTROS & PAGINAÇÃO =================
   const [filtros, setFiltros] = useState({
     status: 'todas',
     busca: ''
@@ -21,12 +26,24 @@ function Vagas_cadastrada_empresa() {
     total: 0
   });
   
-  // Estados para ações
+  // ================= AÇÕES SOBRE VAGA =================
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
   const [modalAberto, setModalAberto] = useState(false);
   const [acaoLoading, setAcaoLoading] = useState(false);
 
-  // Verificar autenticação e carregar dados
+  // ================= CANDIDATOS (MODAL DE LISTA) =================
+  const [candidatosOpen, setCandidatosOpen] = useState(false);
+  const [candidatos, setCandidatos] = useState([]);
+  const [loadingCandidatos, setLoadingCandidatos] = useState(false);
+  const [candidatosError, setCandidatosError] = useState('');
+
+  // ================= PERFIL (MODAL DE DETALHE) =================
+  const [perfilOpen, setPerfilOpen] = useState(false);
+  const [candidaturaSelecionada, setCandidaturaSelecionada] = useState(null);
+  const [detalheLoading, setDetalheLoading] = useState(false);
+  const [detalheError, setDetalheError] = useState('');
+
+  // ================= AUTH / CARGA INICIAL =================
   useEffect(() => {
     const isLoggedIn = localStorage.getItem('isLoggedIn');
     const userType = localStorage.getItem('userType');
@@ -41,17 +58,18 @@ function Vagas_cadastrada_empresa() {
       try {
         const parsedData = JSON.parse(empresaDataStored);
         setEmpresaData(parsedData);
-      } catch (error) {
-        console.error('Erro ao carregar dados da empresa:', error);
+      } catch (err) {
+        console.error('Erro ao carregar dados da empresa:', err);
         navigate('/login');
         return;
       }
     }
 
     carregarVagas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [navigate, filtros, paginacao.pagina]);
 
-  // Função para carregar vagas da empresa
+  // ================= FUNÇÕES: VAGAS =================
   const carregarVagas = async () => {
     try {
       setLoading(true);
@@ -89,15 +107,14 @@ function Vagas_cadastrada_empresa() {
         setError(result.message || 'Erro ao carregar vagas');
       }
 
-    } catch (error) {
-      console.error('Erro ao carregar vagas:', error);
+    } catch (err) {
+      console.error('Erro ao carregar vagas:', err);
       setError('Erro de conexão. Tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Função para alterar status da vaga
   const alterarStatusVaga = async (vagaId, novoStatus) => {
     try {
       setAcaoLoading(true);
@@ -115,7 +132,6 @@ function Vagas_cadastrada_empresa() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // Atualizar status localmente
         setVagas(prev => prev.map(vaga => 
           vaga.id === vagaId ? { ...vaga, status: novoStatus } : vaga
         ));
@@ -125,15 +141,74 @@ function Vagas_cadastrada_empresa() {
         alert(`Erro ao alterar status: ${result.message}`);
       }
 
-    } catch (error) {
-      console.error('Erro ao alterar status:', error);
+    } catch (err) {
+      console.error('Erro ao alterar status:', err);
       alert('Erro de conexão. Tente novamente.');
     } finally {
       setAcaoLoading(false);
     }
   };
 
-  // Formatadores
+  // ================= FUNÇÕES: CANDIDATOS E PERFIL =================
+  const abrirCandidatos = async (vaga) => {
+    try {
+      setVagaSelecionada(vaga);
+      setCandidatosOpen(true);
+      setLoadingCandidatos(true);
+      setCandidatosError('');
+      setCandidatos([]);
+
+      const token = localStorage.getItem('authToken');
+      const resp = await fetch(`http://localhost:3001/api/candidaturas/vaga/${vaga.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const json = await resp.json();
+      if (resp.ok && json.success) {
+        setCandidatos(json.data?.candidaturas ?? []);
+      } else {
+        setCandidatosError(json.message || 'Erro ao buscar candidatos da vaga.');
+      }
+    } catch (err) {
+      console.error('Erro ao carregar candidatos:', err);
+      setCandidatosError('Erro de conexão ao carregar candidatos.');
+    } finally {
+      setLoadingCandidatos(false);
+    }
+  };
+
+  const abrirPerfilCompleto = async (candidaturaId) => {
+    try {
+      setPerfilOpen(true);
+      setDetalheLoading(true);
+      setDetalheError('');
+      setCandidaturaSelecionada(null);
+
+      const token = localStorage.getItem('authToken');
+      // rota para EMPRESA ver detalhes (usa include do freelancer no controller)
+      const resp = await fetch(`http://localhost:3001/api/candidaturas/empresa/${candidaturaId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const json = await resp.json();
+      if (resp.ok && json.success) {
+        setCandidaturaSelecionada(json.data);
+      } else {
+        setDetalheError(json.message || 'Erro ao carregar perfil do candidato.');
+      }
+    } catch (err) {
+      console.error('Erro ao carregar detalhe candidatura:', err);
+      setDetalheError('Erro de conexão ao carregar perfil.');
+    } finally {
+      setDetalheLoading(false);
+    }
+  };
+
+  // ================= FORMATADORES =================
   const formatarData = (dataString) => {
     return new Date(dataString).toLocaleDateString('pt-BR');
   };
@@ -174,17 +249,18 @@ function Vagas_cadastrada_empresa() {
     return labels[status] || status;
   };
 
-  // Filtrar vagas localmente por busca
+  // ================= FILTRO LOCAL =================
   const vagasFiltradas = vagas.filter(vaga => {
     if (!filtros.busca) return true;
     const busca = filtros.busca.toLowerCase();
     return (
       vaga.titulo.toLowerCase().includes(busca) ||
       vaga.area_atuacao.toLowerCase().includes(busca) ||
-      vaga.localizacao_texto.toLowerCase().includes(busca)
+      (vaga.localizacao_texto || '').toLowerCase().includes(busca)
     );
   });
 
+  // ================= UI LOADING =================
   if (loading && vagas.length === 0) {
     return (
       <div className="max-w-6xl mx-auto p-6">
@@ -195,6 +271,7 @@ function Vagas_cadastrada_empresa() {
     );
   }
 
+  // ================= RENDER =================
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -363,7 +440,7 @@ function Vagas_cadastrada_empresa() {
                   )}
 
                   {/* Skills */}
-                  {vaga.skills_obrigatorias && vaga.skills_obrigatorias.length > 0 && (
+                  {Array.isArray(vaga.skills_obrigatorias) && vaga.skills_obrigatorias.length > 0 && (
                     <div className="mb-4">
                       <span className="text-sm font-medium text-gray-700 mr-2">Skills:</span>
                       <div className="inline-flex flex-wrap gap-1">
@@ -401,6 +478,14 @@ function Vagas_cadastrada_empresa() {
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
                   >
                     Editar
+                  </button>
+
+                  {/* NOVO: abrir candidatos */}
+                  <button
+                    onClick={() => abrirCandidatos(vaga)}
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
+                  >
+                    Candidatos
                   </button>
                   
                   <button
@@ -446,7 +531,7 @@ function Vagas_cadastrada_empresa() {
         </div>
       )}
 
-      {/* Modal para Alterar Status */}
+      {/* ===================== Modal: Alterar Status ===================== */}
       {modalAberto && vagaSelecionada && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -500,6 +585,26 @@ function Vagas_cadastrada_empresa() {
           </div>
         </div>
       )}
+
+      {/* ===================== Modal: Candidatos (lista) ===================== */}
+      <CandidatosModal
+        open={candidatosOpen}
+        onClose={() => setCandidatosOpen(false)}
+        vagaSelecionada={vagaSelecionada}
+        loading={loadingCandidatos}
+        error={candidatosError}
+        candidatos={candidatos}
+        onVerPerfil={abrirPerfilCompleto}
+      />
+
+      {/* ===================== Modal: Perfil Completo ===================== */}
+      <PerfilCandidatoModal
+        open={perfilOpen}
+        onClose={() => setPerfilOpen(false)}
+        loading={detalheLoading}
+        error={detalheError}
+        candidatura={candidaturaSelecionada}
+      />
     </div>
   );
 }

@@ -1,5 +1,10 @@
+// src/pages/Perfil_empresa.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+
+// componentes (substituem os blocos HTML dos modais)
+import CandidatosModal from '../components/CandidatosModal';
+import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 
 function Perfil_empresa() {
   const navigate = useNavigate();
@@ -19,6 +24,19 @@ function Perfil_empresa() {
   const [editData, setEditData] = useState({});
   const [saveLoading, setSaveLoading] = useState(false);
   const [editError, setEditError] = useState('');
+
+  // === Candidatos Modal (lista) ===
+  const [candidatosOpen, setCandidatosOpen] = useState(false);
+  const [vagaSelecionada, setVagaSelecionada] = useState(null);
+  const [candidatos, setCandidatos] = useState([]);
+  const [loadingCandidatos, setLoadingCandidatos] = useState(false);
+  const [candidatosError, setCandidatosError] = useState('');
+
+  // === Perfil completo do candidato (detalhe) ===
+  const [perfilOpen, setPerfilOpen] = useState(false);
+  const [candidaturaSelecionada, setCandidaturaSelecionada] = useState(null);
+  const [detalheLoading, setDetalheLoading] = useState(false);
+  const [detalheError, setDetalheError] = useState('');
 
   // Função para abrir modal de edição
   const abrirModalEdicao = () => {
@@ -48,7 +66,7 @@ function Perfil_empresa() {
     setIsEditing(true);
   };
 
-  // Função para salvar alterações
+  // Salvar alterações
   const salvarAlteracoes = async () => {
     try {
       setSaveLoading(true);
@@ -60,27 +78,20 @@ function Perfil_empresa() {
         return;
       }
 
-      // Preparar dados para envio - remover campos vazios
       const dadosParaEnvio = {};
-      
-      // Só incluir campos que não estão vazios
       Object.keys(editData).forEach(key => {
         if (editData[key] && editData[key].toString().trim() !== '') {
           dadosParaEnvio[key] = editData[key];
         }
       });
-      
-      // Converter strings em arrays apenas se não estiverem vazias
       if (editData.areas_atuacao && editData.areas_atuacao.trim()) {
         dadosParaEnvio.areas_atuacao = editData.areas_atuacao
           .split(',').map(item => item.trim()).filter(item => item);
       }
-      
       if (editData.beneficios_array && editData.beneficios_array.trim()) {
         dadosParaEnvio.beneficios_array = editData.beneficios_array
           .split(',').map(item => item.trim()).filter(item => item);
       }
-      
       if (editData.tecnologias_usadas && editData.tecnologias_usadas.trim()) {
         dadosParaEnvio.tecnologias_usadas = editData.tecnologias_usadas
           .split(',').map(item => item.trim()).filter(item => item);
@@ -98,7 +109,6 @@ function Perfil_empresa() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // Atualizar dados locais
         const dadosAtualizados = { ...empresaData, ...result.data };
         setEmpresaData(dadosAtualizados);
         localStorage.setItem('empresaData', JSON.stringify(dadosAtualizados));
@@ -117,20 +127,19 @@ function Perfil_empresa() {
     }
   };
 
-  // Função para atualizar campos do formulário
+  // Atualizar campos do formulário
   const atualizarCampo = (campo, valor) => {
     setEditData(prev => ({ ...prev, [campo]: valor }));
   };
 
-  // Função simples para carregar vagas
+  // Carregar vagas
   const carregarVagas = async () => {
     try {
       setLoadingVagas(true);
-      
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/api/vagas/empresa/minhas?status=todas&pagina=1&limite=10`, {
+      const response = await fetch(`http://localhost:3001/api/vagas/empresa/minhas?status=todas&pagina=1&limite=50`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -148,7 +157,69 @@ function Perfil_empresa() {
     }
   };
 
-  // Funções de formatação
+  // ==== Candidatos de uma vaga ====
+  const abrirCandidatos = async (vaga) => {
+    try {
+      setVagaSelecionada(vaga);
+      setCandidatosOpen(true);
+      setLoadingCandidatos(true);
+      setCandidatosError('');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      const res = await fetch(`http://localhost:3001/api/candidaturas/vaga/${vaga.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setCandidatos(json.data.candidaturas || []);
+      } else {
+        setCandidatosError(json.message || 'Falha ao carregar candidatos.');
+      }
+    } catch (e) {
+      console.error(e);
+      setCandidatosError('Erro de conexão ao carregar candidatos.');
+    } finally {
+      setLoadingCandidatos(false);
+    }
+  };
+
+  // Detalhes do candidato (via candidatura)
+  const abrirPerfilCompleto = async (candidaturaId) => {
+    try {
+      setDetalheLoading(true);
+      setDetalheError('');
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
+      }
+      const res = await fetch(`http://localhost:3001/api/candidaturas/empresa/${candidaturaId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setCandidaturaSelecionada(json.data);
+        setPerfilOpen(true);
+      } else {
+        setDetalheError(json.message || 'Não foi possível carregar o perfil completo.');
+      }
+    } catch (e) {
+      console.error(e);
+      setDetalheError('Erro de conexão ao carregar perfil do candidato.');
+    } finally {
+      setDetalheLoading(false);
+    }
+  };
+
+  // Formatações
   const formatarData = (dataString) => {
     if (!dataString) return 'Não informado';
     return new Date(dataString).toLocaleDateString('pt-BR');
@@ -161,7 +232,9 @@ function Perfil_empresa() {
 
   const formatarTelefone = (telefone) => {
     if (!telefone) return 'Não informado';
-    return telefone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
+    const only = telefone.replace(/\D/g, '');
+    if (only.length < 10) return telefone;
+    return only.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
   };
 
   const getStatusLabel = (status) => {
@@ -203,7 +276,6 @@ function Perfil_empresa() {
 
   // useEffects
   useEffect(() => {
-    // Verificar se usuário está logado e é uma empresa
     const isLoggedIn = localStorage.getItem('isLoggedIn');
     const userType = localStorage.getItem('userType');
     const empresaDataStored = localStorage.getItem('empresaData');
@@ -217,8 +289,6 @@ function Perfil_empresa() {
       try {
         const parsedData = JSON.parse(empresaDataStored);
         setEmpresaData(parsedData);
-        
-        // Carregar vagas imediatamente após definir os dados da empresa
         carregarVagas();
       } catch (error) {
         console.error('Erro ao carregar dados da empresa:', error);
@@ -231,12 +301,11 @@ function Perfil_empresa() {
     setLoading(false);
   }, [navigate]);
 
-  // Carregar vagas quando mudar para a aba de vagas OU quando salvar o perfil
   useEffect(() => {
     if (activeTab === 'vagas' && empresaData && vagas.length === 0) {
       carregarVagas();
     }
-  }, [activeTab, empresaData]);
+  }, [activeTab, empresaData]); // eslint-disable-line
 
   if (loading) {
     return (
@@ -267,6 +336,7 @@ function Perfil_empresa() {
     );
   }
 
+  // ==== Render ====
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -296,7 +366,7 @@ function Perfil_empresa() {
                   }
                 </div>
 
-                {/* Métricas da empresa */}
+                {/* Métricas */}
                 <div className="flex items-center space-x-6 text-sm">
                   <div className="bg-green-100 text-green-700 px-3 py-1 rounded-full font-medium">
                     Status: {getStatusLabel(empresaData.status)}
@@ -313,7 +383,7 @@ function Perfil_empresa() {
               </div>
             </div>
 
-            {/* Botões de ação */}
+            {/* Ações */}
             <div className="flex space-x-3">
               <button
                 onClick={abrirModalEdicao}
@@ -333,60 +403,36 @@ function Perfil_empresa() {
 
         {/* Cards de métricas */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {/* Vagas Ativas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500">Vagas Ativas</span>
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-blue-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2z" clipRule="evenodd" />
-                </svg>
-              </div>
             </div>
             <div className="text-3xl font-bold text-blue-600">
               {vagas.filter(v => v.status === 'ativo').length}
             </div>
           </div>
 
-          {/* Total de Vagas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500">Total de Vagas</span>
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
             </div>
             <div className="text-3xl font-bold text-green-600">
               {vagas.length}
             </div>
           </div>
 
-          {/* Total de Candidaturas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500">Candidaturas</span>
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                </svg>
-              </div>
             </div>
             <div className="text-3xl font-bold text-purple-600">
               {vagas.reduce((total, vaga) => total + (vaga.candidaturas || 0), 0)}
             </div>
           </div>
 
-          {/* Anos no Mercado */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500">Anos no Mercado</span>
-              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
-                </svg>
-              </div>
             </div>
             <div className="text-3xl font-bold text-orange-600">
               {empresaData.created_at ? 
@@ -397,11 +443,15 @@ function Perfil_empresa() {
           </div>
         </div>
 
-        {/* Tabs de navegação */}
+        {/* Tabs */}
         <div className="mb-8">
           <div className="border-b border-gray-200">
             <nav className="-mb-px flex space-x-8">
-              {tabs.map(tab => (
+              {[
+                { id: 'informacoes', label: 'Informações da Empresa' },
+                { id: 'vagas', label: 'Vagas Publicadas' },
+                { id: 'contato', label: 'Contato' }
+              ].map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
@@ -418,11 +468,10 @@ function Perfil_empresa() {
           </div>
         </div>
 
-        {/* Conteúdo das tabs */}
+        {/* Conteúdo */}
         <div className="space-y-8">
           {activeTab === 'informacoes' && (
             <>
-              {/* Sobre a Empresa */}
               <div className="bg-white p-8 rounded-lg shadow-md">
                 <h2 className="text-2xl font-bold text-gray-900 mb-6">
                   Sobre a Empresa
@@ -433,7 +482,6 @@ function Perfil_empresa() {
                 </p>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                  {/* Informações Básicas */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Informações Básicas
@@ -471,7 +519,6 @@ function Perfil_empresa() {
                     </div>
                   </div>
 
-                  {/* Localização */}
                   <div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
                       Localização
@@ -501,7 +548,6 @@ function Perfil_empresa() {
                   </div>
                 </div>
 
-                {/* Áreas de Atuação */}
                 {empresaData.areas_atuacao && empresaData.areas_atuacao.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -520,7 +566,6 @@ function Perfil_empresa() {
                   </div>
                 )}
 
-                {/* Benefícios Oferecidos */}
                 {empresaData.beneficios_array && empresaData.beneficios_array.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -539,7 +584,6 @@ function Perfil_empresa() {
                   </div>
                 )}
 
-                {/* Tecnologias Utilizadas */}
                 {empresaData.tecnologias_usadas && empresaData.tecnologias_usadas.length > 0 && (
                   <div className="mt-8">
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">
@@ -575,7 +619,6 @@ function Perfil_empresa() {
                 </button>
               </div>
               
-              {/* Loading */}
               {loadingVagas ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
@@ -600,9 +643,8 @@ function Perfil_empresa() {
                   </button>
                 </div>
               ) : (
-                /* Lista simples das vagas */
                 <div className="space-y-4">
-                  {vagas.slice(0, 5).map((vaga) => (
+                  {vagas.slice(0, 50).map((vaga) => (
                     <div key={vaga.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -629,23 +671,20 @@ function Perfil_empresa() {
                             </span>
                           </div>
                         </div>
-                        <div className="text-xs text-gray-500">
-                          {formatarData(vaga.created_at)}
+                        <div className="flex flex-col items-end gap-2">
+                          <div className="text-xs text-gray-500">
+                            {formatarData(vaga.created_at)}
+                          </div>
+                          <button
+                            onClick={() => abrirCandidatos(vaga)}
+                            className="px-4 py-2 bg-white text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors text-sm"
+                          >
+                            Ver candidatos
+                          </button>
                         </div>
                       </div>
                     </div>
                   ))}
-                  
-                  {vagas.length > 5 && (
-                    <div className="text-center pt-4">
-                      <button
-                        onClick={() => navigate('/vagas-cadastradas')}
-                        className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                      >
-                        Ver todas as {vagas.length} vagas →
-                      </button>
-                    </div>
-                  )}
                 </div>
               )}
             </div>
@@ -733,9 +772,9 @@ function Perfil_empresa() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Telefone Direto
                         </label>
-                        <div className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
-                          {formatarTelefone(empresaData.responsavel_telefone)}
-                        </div>
+                          <div className="w-full p-3 bg-gray-50 border border-gray-300 rounded-lg text-gray-900">
+                            {formatarTelefone(empresaData.responsavel_telefone)}
+                          </div>
                       </div>
                     )}
                   </div>
@@ -753,25 +792,29 @@ function Perfil_empresa() {
             </div>
           )}
         </div>
-
-        {/* Botão de Logout */}
-        <div className="flex justify-end mt-8">
-          <button
-            onClick={() => {
-              localStorage.removeItem('authToken');
-              localStorage.removeItem('empresaData');
-              localStorage.removeItem('userType');
-              localStorage.removeItem('isLoggedIn');
-              navigate('/login');
-            }}
-            className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-          >
-            Sair da Conta
-          </button>
-        </div>
       </div>
 
-      {/* Modal de edição */}
+      {/* ===================== (SUBSTITUÍDO) Modal: Candidatos da Vaga ===================== */}
+      <CandidatosModal
+        open={candidatosOpen}
+        onClose={() => setCandidatosOpen(false)}
+        vagaSelecionada={vagaSelecionada}
+        loading={loadingCandidatos}
+        error={candidatosError}
+        candidatos={candidatos}
+        onVerPerfil={abrirPerfilCompleto}
+      />
+
+      {/* ===================== (SUBSTITUÍDO) Modal: Perfil Completo do Candidato ===================== */}
+      <PerfilCandidatoModal
+        open={perfilOpen}
+        onClose={() => setPerfilOpen(false)}
+        loading={detalheLoading}
+        error={detalheError}
+        candidatura={candidaturaSelecionada}
+      />
+
+      {/* ===================== Modal de Edição ===================== */}
       {isEditing && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -796,6 +839,7 @@ function Perfil_empresa() {
             </div>
             
             <div className="p-6 space-y-8">
+              {/* (formulário de edição) — permanece igual ao seu código original */}
               {/* Informações Básicas */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Informações Básicas</h4>
@@ -944,7 +988,7 @@ function Perfil_empresa() {
                 </div>
               </div>
 
-              {/* Descrição */}
+              {/* Sobre a Empresa */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Sobre a Empresa</h4>
                 <div className="space-y-4">
@@ -1046,7 +1090,7 @@ function Perfil_empresa() {
                 </div>
               </div>
 
-              {/* Arrays - Áreas, Benefícios, Tecnologias */}
+              {/* Arrays */}
               <div>
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">Áreas e Tecnologias</h4>
                 <div className="space-y-4">
@@ -1095,7 +1139,7 @@ function Perfil_empresa() {
               </div>
             </div>
 
-            {/* Botões de ação */}
+            {/* Ações */}
             <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 sticky bottom-0">
               <button
                 onClick={() => setIsEditing(false)}
