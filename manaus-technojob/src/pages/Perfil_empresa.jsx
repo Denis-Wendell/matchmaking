@@ -3,48 +3,124 @@ import { useNavigate } from 'react-router-dom';
 
 function Perfil_empresa() {
   const navigate = useNavigate();
+  
+  // Estados principais
   const [empresaData, setEmpresaData] = useState(null);
   const [activeTab, setActiveTab] = useState('informacoes');
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Estados apenas para vagas
+  // Estados para vagas
   const [vagas, setVagas] = useState([]);
   const [loadingVagas, setLoadingVagas] = useState(false);
+  
+  // Estados para edição
+  const [editData, setEditData] = useState({});
+  const [saveLoading, setSaveLoading] = useState(false);
+  const [editError, setEditError] = useState('');
 
-  useEffect(() => {
-    // Verificar se usuário está logado e é uma empresa
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
-    const userType = localStorage.getItem('userType');
-    const empresaDataStored = localStorage.getItem('empresaData');
+  // Função para abrir modal de edição
+  const abrirModalEdicao = () => {
+    setEditData({
+      nome: empresaData.nome || '',
+      email_corporativo: empresaData.email_corporativo || '',
+      telefone: empresaData.telefone || '',
+      endereco_completo: empresaData.endereco_completo || '',
+      cidade: empresaData.cidade || '',
+      estado: empresaData.estado || '',
+      cep: empresaData.cep || '',
+      setor_atuacao: empresaData.setor_atuacao || '',
+      tamanho_empresa: empresaData.tamanho_empresa || 'pequena',
+      site_empresa: empresaData.site_empresa || '',
+      descricao_empresa: empresaData.descricao_empresa || '',
+      principais_beneficios: empresaData.principais_beneficios || '',
+      cultura_empresa: empresaData.cultura_empresa || '',
+      responsavel_nome: empresaData.responsavel_nome || '',
+      responsavel_cargo: empresaData.responsavel_cargo || '',
+      responsavel_email: empresaData.responsavel_email || '',
+      responsavel_telefone: empresaData.responsavel_telefone || '',
+      areas_atuacao: empresaData.areas_atuacao?.join(', ') || '',
+      beneficios_array: empresaData.beneficios_array?.join(', ') || '',
+      tecnologias_usadas: empresaData.tecnologias_usadas?.join(', ') || '',
+    });
+    setEditError('');
+    setIsEditing(true);
+  };
 
-    if (!isLoggedIn || userType !== 'empresa') {
-      navigate('/login');
-      return;
-    }
-
-    if (empresaDataStored) {
-      try {
-        const parsedData = JSON.parse(empresaDataStored);
-        setEmpresaData(parsedData);
-      } catch (error) {
-        console.error('Erro ao carregar dados da empresa:', error);
-        setError('Erro ao carregar dados do perfil');
+  // Função para salvar alterações
+  const salvarAlteracoes = async () => {
+    try {
+      setSaveLoading(true);
+      setEditError('');
+      
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        navigate('/login');
+        return;
       }
-    } else {
-      setError('Dados da empresa não encontrados');
-    }
 
-    setLoading(false);
-  }, [navigate]);
+      // Preparar dados para envio - remover campos vazios
+      const dadosParaEnvio = {};
+      
+      // Só incluir campos que não estão vazios
+      Object.keys(editData).forEach(key => {
+        if (editData[key] && editData[key].toString().trim() !== '') {
+          dadosParaEnvio[key] = editData[key];
+        }
+      });
+      
+      // Converter strings em arrays apenas se não estiverem vazias
+      if (editData.areas_atuacao && editData.areas_atuacao.trim()) {
+        dadosParaEnvio.areas_atuacao = editData.areas_atuacao
+          .split(',').map(item => item.trim()).filter(item => item);
+      }
+      
+      if (editData.beneficios_array && editData.beneficios_array.trim()) {
+        dadosParaEnvio.beneficios_array = editData.beneficios_array
+          .split(',').map(item => item.trim()).filter(item => item);
+      }
+      
+      if (editData.tecnologias_usadas && editData.tecnologias_usadas.trim()) {
+        dadosParaEnvio.tecnologias_usadas = editData.tecnologias_usadas
+          .split(',').map(item => item.trim()).filter(item => item);
+      }
 
-  // Carregar vagas quando mudar para a aba de vagas
-  useEffect(() => {
-    if (activeTab === 'vagas' && empresaData) {
-      carregarVagas();
+      const response = await fetch(`http://localhost:3001/api/empresas/me/perfil`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(dadosParaEnvio)
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        // Atualizar dados locais
+        const dadosAtualizados = { ...empresaData, ...result.data };
+        setEmpresaData(dadosAtualizados);
+        localStorage.setItem('empresaData', JSON.stringify(dadosAtualizados));
+        
+        setIsEditing(false);
+        alert('Perfil atualizado com sucesso!');
+      } else {
+        setEditError(result.message || 'Erro ao atualizar perfil');
+      }
+
+    } catch (error) {
+      console.error('Erro ao salvar:', error);
+      setEditError('Erro de conexão. Tente novamente.');
+    } finally {
+      setSaveLoading(false);
     }
-  }, [activeTab, empresaData]);
+  };
+
+  // Função para atualizar campos do formulário
+  const atualizarCampo = (campo, valor) => {
+    setEditData(prev => ({ ...prev, [campo]: valor }));
+  };
 
   // Função simples para carregar vagas
   const carregarVagas = async () => {
@@ -72,6 +148,7 @@ function Perfil_empresa() {
     }
   };
 
+  // Funções de formatação
   const formatarData = (dataString) => {
     if (!dataString) return 'Não informado';
     return new Date(dataString).toLocaleDateString('pt-BR');
@@ -87,6 +164,26 @@ function Perfil_empresa() {
     return telefone.replace(/(\d{2})(\d{4,5})(\d{4})/, '($1) $2-$3');
   };
 
+  const getStatusLabel = (status) => {
+    const labels = {
+      'ativa': 'Ativa',
+      'inativa': 'Inativa',
+      'pendente': 'Pendente',
+      'bloqueada': 'Bloqueada'
+    };
+    return labels[status] || status || 'Ativa';
+  };
+
+  const getStatusColor = (status) => {
+    const colors = {
+      'ativa': 'bg-green-100 text-green-800',
+      'inativa': 'bg-red-100 text-red-800',
+      'pendente': 'bg-yellow-100 text-yellow-800',
+      'bloqueada': 'bg-red-100 text-red-800'
+    };
+    return colors[status] || 'bg-green-100 text-green-800';
+  };
+
   const getTamanhoEmpresaLabel = (tamanho) => {
     const labels = {
       'startup': 'Startup',
@@ -98,31 +195,48 @@ function Perfil_empresa() {
     return labels[tamanho] || tamanho || 'Não informado';
   };
 
-  const getStatusLabel = (status) => {
-    const labels = {
-      'ativo': 'Ativo',
-      'inativo': 'Inativo',
-      'pausado': 'Pausado',
-      'pendente': 'Pendente'
-    };
-    return labels[status] || status || 'Ativo';
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      'ativo': 'bg-green-100 text-green-800',
-      'inativo': 'bg-red-100 text-red-800',
-      'pausado': 'bg-yellow-100 text-yellow-800',
-      'pendente': 'bg-blue-100 text-blue-800'
-    };
-    return colors[status] || 'bg-green-100 text-green-800';
-  };
-
   const tabs = [
     { id: 'informacoes', label: 'Informações da Empresa' },
     { id: 'vagas', label: 'Vagas Publicadas' },
     { id: 'contato', label: 'Contato' }
   ];
+
+  // useEffects
+  useEffect(() => {
+    // Verificar se usuário está logado e é uma empresa
+    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const userType = localStorage.getItem('userType');
+    const empresaDataStored = localStorage.getItem('empresaData');
+
+    if (!isLoggedIn || userType !== 'empresa') {
+      navigate('/login');
+      return;
+    }
+
+    if (empresaDataStored) {
+      try {
+        const parsedData = JSON.parse(empresaDataStored);
+        setEmpresaData(parsedData);
+        
+        // Carregar vagas imediatamente após definir os dados da empresa
+        carregarVagas();
+      } catch (error) {
+        console.error('Erro ao carregar dados da empresa:', error);
+        setError('Erro ao carregar dados do perfil');
+      }
+    } else {
+      setError('Dados da empresa não encontrados');
+    }
+
+    setLoading(false);
+  }, [navigate]);
+
+  // Carregar vagas quando mudar para a aba de vagas OU quando salvar o perfil
+  useEffect(() => {
+    if (activeTab === 'vagas' && empresaData && vagas.length === 0) {
+      carregarVagas();
+    }
+  }, [activeTab, empresaData]);
 
   if (loading) {
     return (
@@ -202,7 +316,7 @@ function Perfil_empresa() {
             {/* Botões de ação */}
             <div className="flex space-x-3">
               <button
-                onClick={() => setIsEditing(true)}
+                onClick={abrirModalEdicao}
                 className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 Editar Perfil
@@ -230,44 +344,44 @@ function Perfil_empresa() {
               </div>
             </div>
             <div className="text-3xl font-bold text-blue-600">
-              8
+              {vagas.filter(v => v.status === 'ativo').length}
             </div>
           </div>
 
-          {/* Colaboradores */}
+          {/* Total de Vagas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500">Colaboradores</span>
+              <span className="text-sm text-gray-500">Total de Vagas</span>
               <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
                 <svg className="w-4 h-4 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
-                </svg>
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-green-600">
-              127
-            </div>
-          </div>
-
-          {/* Projetos */}
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500">Projetos</span>
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M3 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm0 4a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1z" clipRule="evenodd" />
                 </svg>
               </div>
             </div>
-            <div className="text-3xl font-bold text-purple-600">
-              156
+            <div className="text-3xl font-bold text-green-600">
+              {vagas.length}
             </div>
           </div>
 
-          {/* Anos de Mercado */}
+          {/* Total de Candidaturas */}
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500">Anos de Mercado</span>
+              <span className="text-sm text-gray-500">Candidaturas</span>
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                <svg className="w-4 h-4 text-purple-600" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0119 16v1h-6.07zM6 11a5 5 0 015 5v1H1v-1a5 5 0 015-5z" />
+                </svg>
+              </div>
+            </div>
+            <div className="text-3xl font-bold text-purple-600">
+              {vagas.reduce((total, vaga) => total + (vaga.candidaturas || 0), 0)}
+            </div>
+          </div>
+
+          {/* Anos no Mercado */}
+          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-gray-500">Anos no Mercado</span>
               <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                 <svg className="w-4 h-4 text-orange-600" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
@@ -277,7 +391,7 @@ function Perfil_empresa() {
             <div className="text-3xl font-bold text-orange-600">
               {empresaData.created_at ? 
                 new Date().getFullYear() - new Date(empresaData.created_at).getFullYear() : 
-                '7'
+                '0'
               }
             </div>
           </div>
@@ -502,10 +616,13 @@ function Perfil_empresa() {
                             <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                               vaga.status === 'ativo' ? 'bg-green-100 text-green-800' :
                               vaga.status === 'pausado' ? 'bg-yellow-100 text-yellow-800' :
-                              'bg-red-100 text-red-800'
+                              vaga.status === 'inativo' ? 'bg-red-100 text-red-800' :
+                              'bg-gray-100 text-gray-800'
                             }`}>
                               {vaga.status === 'ativo' ? 'Ativa' : 
-                               vaga.status === 'pausado' ? 'Pausada' : 'Inativa'}
+                               vaga.status === 'pausado' ? 'Pausada' : 
+                               vaga.status === 'inativo' ? 'Inativa' :
+                               vaga.status}
                             </span>
                             <span className="text-xs text-gray-500">
                               {vaga.candidaturas || 0} candidatura(s)
@@ -627,7 +744,7 @@ function Perfil_empresa() {
 
               <div className="mt-8 flex justify-end">
                 <button
-                  onClick={() => setIsEditing(true)}
+                  onClick={abrirModalEdicao}
                   className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
                   Editar Informações
@@ -654,21 +771,350 @@ function Perfil_empresa() {
         </div>
       </div>
 
-      {/* Modal para edição */}
+      {/* Modal de edição */}
       {isEditing && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white p-6 rounded-lg max-w-md w-full">
-            <h3 className="text-lg font-semibold mb-4">Editar Perfil</h3>
-            <p className="text-gray-600 mb-4">
-              A funcionalidade de edição de perfil está em desenvolvimento. 
-              Em breve você poderá atualizar suas informações diretamente por aqui.
-            </p>
-            <button
-              onClick={() => setIsEditing(false)}
-              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-              Fechar
-            </button>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6 border-b border-gray-200 sticky top-0 bg-white">
+              <div className="flex justify-between items-center">
+                <h3 className="text-2xl font-semibold text-gray-900">Editar Perfil da Empresa</h3>
+                <button
+                  onClick={() => setIsEditing(false)}
+                  disabled={saveLoading}
+                  className="text-gray-400 hover:text-gray-600 p-1"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              {editError && (
+                <div className="mt-4 bg-red-50 border border-red-200 p-3 rounded-lg">
+                  <p className="text-red-700 text-sm">{editError}</p>
+                </div>
+              )}
+            </div>
+            
+            <div className="p-6 space-y-8">
+              {/* Informações Básicas */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Informações Básicas</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome da Empresa *
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.nome}
+                      onChange={(e) => atualizarCampo('nome', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Corporativo *
+                    </label>
+                    <input
+                      type="email"
+                      value={editData.email_corporativo}
+                      onChange={(e) => atualizarCampo('email_corporativo', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefone
+                    </label>
+                    <input
+                      type="tel"
+                      value={editData.telefone}
+                      onChange={(e) => atualizarCampo('telefone', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="(11) 99999-9999"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Site da Empresa
+                    </label>
+                    <input
+                      type="url"
+                      value={editData.site_empresa}
+                      onChange={(e) => atualizarCampo('site_empresa', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="https://www.exemplo.com"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Setor de Atuação *
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.setor_atuacao}
+                      onChange={(e) => atualizarCampo('setor_atuacao', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Ex: Tecnologia, Saúde, Educação"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tamanho da Empresa *
+                    </label>
+                    <select
+                      value={editData.tamanho_empresa}
+                      onChange={(e) => atualizarCampo('tamanho_empresa', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    >
+                      <option value="startup">Startup</option>
+                      <option value="pequena">Pequena (1-50 funcionários)</option>
+                      <option value="media">Média (51-200 funcionários)</option>
+                      <option value="grande">Grande (201-1000 funcionários)</option>
+                      <option value="multinacional">Multinacional (1000+ funcionários)</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Endereço</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Endereço Completo
+                    </label>
+                    <textarea
+                      value={editData.endereco_completo}
+                      onChange={(e) => atualizarCampo('endereco_completo', e.target.value)}
+                      rows="2"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Rua, número, bairro..."
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cidade
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.cidade}
+                      onChange={(e) => atualizarCampo('cidade', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Estado (UF)
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.estado}
+                      onChange={(e) => atualizarCampo('estado', e.target.value)}
+                      maxLength="2"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="SP"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      CEP
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.cep}
+                      onChange={(e) => atualizarCampo('cep', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="00000-000"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Descrição */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Sobre a Empresa</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Descrição da Empresa *
+                    </label>
+                    <textarea
+                      value={editData.descricao_empresa}
+                      onChange={(e) => atualizarCampo('descricao_empresa', e.target.value)}
+                      rows="4"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Descreva sua empresa, missão, valores..."
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cultura da Empresa
+                    </label>
+                    <textarea
+                      value={editData.cultura_empresa}
+                      onChange={(e) => atualizarCampo('cultura_empresa', e.target.value)}
+                      rows="3"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Como é trabalhar na sua empresa..."
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Principais Benefícios
+                    </label>
+                    <textarea
+                      value={editData.principais_beneficios}
+                      onChange={(e) => atualizarCampo('principais_beneficios', e.target.value)}
+                      rows="3"
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Benefícios oferecidos aos funcionários..."
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Responsável */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Pessoa Responsável</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Nome do Responsável *
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.responsavel_nome}
+                      onChange={(e) => atualizarCampo('responsavel_nome', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Cargo *
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.responsavel_cargo}
+                      onChange={(e) => atualizarCampo('responsavel_cargo', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      required
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email do Responsável
+                    </label>
+                    <input
+                      type="email"
+                      value={editData.responsavel_email}
+                      onChange={(e) => atualizarCampo('responsavel_email', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Telefone do Responsável
+                    </label>
+                    <input
+                      type="tel"
+                      value={editData.responsavel_telefone}
+                      onChange={(e) => atualizarCampo('responsavel_telefone', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Arrays - Áreas, Benefícios, Tecnologias */}
+              <div>
+                <h4 className="text-lg font-semibold text-gray-900 mb-4">Áreas e Tecnologias</h4>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Áreas de Atuação
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.areas_atuacao}
+                      onChange={(e) => atualizarCampo('areas_atuacao', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Separe por vírgulas: Frontend, Backend, Mobile"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Separe múltiplas áreas por vírgulas</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Benefícios Oferecidos
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.beneficios_array}
+                      onChange={(e) => atualizarCampo('beneficios_array', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Separe por vírgulas: Vale alimentação, Plano de saúde, Home office"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Separe múltiplos benefícios por vírgulas</p>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Tecnologias Utilizadas
+                    </label>
+                    <input
+                      type="text"
+                      value={editData.tecnologias_usadas}
+                      onChange={(e) => atualizarCampo('tecnologias_usadas', e.target.value)}
+                      className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      placeholder="Separe por vírgulas: React, Node.js, PostgreSQL"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Separe múltiplas tecnologias por vírgulas</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botões de ação */}
+            <div className="p-6 border-t border-gray-200 bg-gray-50 flex justify-end space-x-3 sticky bottom-0">
+              <button
+                onClick={() => setIsEditing(false)}
+                disabled={saveLoading}
+                className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={salvarAlteracoes}
+                disabled={saveLoading}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 flex items-center"
+              >
+                {saveLoading && (
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                )}
+                {saveLoading ? 'Salvando...' : 'Salvar Alterações'}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,3 +1,4 @@
+//associations.js
 const Freelancer = require('./Freelancer');
 const Empresa = require('./Empresa');
 const Vaga = require('./Vaga');
