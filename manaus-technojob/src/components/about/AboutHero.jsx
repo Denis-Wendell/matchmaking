@@ -12,7 +12,7 @@ export default function AboutHero() {
       <div className="absolute inset-0 bg-slate-900/55" />
       <div className="relative z-10 max-w-4xl px-6 text-center">
         <h1 className="text-4xl md:text-5xl font-extrabold text-white">
-          Sobre o TalentMatch
+          Manaus TechnoJob
         </h1>
         <p className="mt-3 text-white/90 text-lg">
           Revolucionando o mercado de trabalho através da Inteligência Artificial
