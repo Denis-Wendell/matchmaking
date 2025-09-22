@@ -6,6 +6,7 @@ import { useNavigate } from 'react-router-dom';
 import CandidatosModal from '../components/CandidatosModal';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 import VagaDetalhesModal from '../components/VagaDetalhesModal';
+import VagaEditarModal from '../components/VagaEditarModal';
 
 function Vagas_cadastrada_empresa() {
   const navigate = useNavigate();
@@ -231,6 +232,16 @@ function Vagas_cadastrada_empresa() {
     }
   };
 
+  // ================= MODAL EDITAR VAGA =================
+  const [editarOpen, setEditarOpen] = useState(false);
+  const [vagaEdicao, setVagaEdicao] = useState(null);
+
+  const abrirEdicaoVaga = (vaga) => {
+  setVagaEdicao(vaga);
+  setEditarOpen(true);
+};
+
+
   // ================= FORMATADORES =================
   const formatarData = (dataString) => new Date(dataString).toLocaleDateString('pt-BR');
 
@@ -445,13 +456,15 @@ function Vagas_cadastrada_empresa() {
                     Ver Detalhes
                   </button>
 
+
                   <button
-                    onClick={() => navigate(`/editar-vaga/${vaga.id}`)}
+                    onClick={() => abrirEdicaoVaga(vaga)}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
                   >
                     Editar
                   </button>
 
+                  
                   <button
                     onClick={() => abrirCandidatos(vaga)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
@@ -572,6 +585,20 @@ function Vagas_cadastrada_empresa() {
         vaga={vagaDetalhes || vagaSelecionada}
         loading={detalhesVagaLoading}
       />
+
+      <VagaEditarModal
+        open={editarOpen}
+        onClose={() => setEditarOpen(false)}
+        vagaId={vagaEdicao?.id}
+        initialData={vagaEdicao}
+        onUpdated={(vagaAtualizada) => {
+          // atualiza item na lista
+          setVagas(prev => prev.map(v => v.id === vagaAtualizada.id ? { ...v, ...vagaAtualizada } : v));
+          setEditarOpen(false);
+          setVagaEdicao(vagaAtualizada);
+        }}
+      />
+
     </div>
   );
 }
