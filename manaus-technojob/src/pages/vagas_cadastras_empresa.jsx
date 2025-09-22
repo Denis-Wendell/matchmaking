@@ -2,9 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-// componentes novos
+// componentes
 import CandidatosModal from '../components/CandidatosModal';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
+import VagaDetalhesModal from '../components/VagaDetalhesModal';
 
 function Vagas_cadastrada_empresa() {
   const navigate = useNavigate();
@@ -16,15 +17,8 @@ function Vagas_cadastrada_empresa() {
   const [empresaData, setEmpresaData] = useState(null);
   
   // ================= FILTROS & PAGINAÇÃO =================
-  const [filtros, setFiltros] = useState({
-    status: 'todas',
-    busca: ''
-  });
-  const [paginacao, setPaginacao] = useState({
-    pagina: 1,
-    totalPaginas: 1,
-    total: 0
-  });
+  const [filtros, setFiltros] = useState({ status: 'todas', busca: '' });
+  const [paginacao, setPaginacao] = useState({ pagina: 1, totalPaginas: 1, total: 0 });
   
   // ================= AÇÕES SOBRE VAGA =================
   const [vagaSelecionada, setVagaSelecionada] = useState(null);
@@ -42,6 +36,11 @@ function Vagas_cadastrada_empresa() {
   const [candidaturaSelecionada, setCandidaturaSelecionada] = useState(null);
   const [detalheLoading, setDetalheLoading] = useState(false);
   const [detalheError, setDetalheError] = useState('');
+
+  // ================= DETALHES DA VAGA (MODAL OVERFLOW) =================
+  const [modalDetalhes, setModalDetalhes] = useState(false);
+  const [detalhesVagaLoading, setDetalhesVagaLoading] = useState(false);
+  const [vagaDetalhes, setVagaDetalhes] = useState(null);
 
   // ================= AUTH / CARGA INICIAL =================
   useEffect(() => {
@@ -187,7 +186,6 @@ function Vagas_cadastrada_empresa() {
       setCandidaturaSelecionada(null);
 
       const token = localStorage.getItem('authToken');
-      // rota para EMPRESA ver detalhes (usa include do freelancer no controller)
       const resp = await fetch(`http://localhost:3001/api/candidaturas/empresa/${candidaturaId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -208,24 +206,39 @@ function Vagas_cadastrada_empresa() {
     }
   };
 
-  // ================= FORMATADORES =================
-  const formatarData = (dataString) => {
-    return new Date(dataString).toLocaleDateString('pt-BR');
+  // ================= DETALHES DA VAGA (OVERFLOW) =================
+  const abrirDetalhesVaga = async (vaga) => {
+    setModalDetalhes(true);
+    setDetalhesVagaLoading(true);
+    setVagaDetalhes(null);
+
+    try {
+      const resp = await fetch(`http://localhost:3001/api/vagas/${vaga.id}`, {
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const json = await resp.json();
+      if (resp.ok && json.success) {
+        setVagaDetalhes(json.data);
+      } else {
+        // fallback: usar os dados já carregados
+        setVagaDetalhes(vaga);
+      }
+    } catch (e) {
+      console.error('Erro ao carregar detalhes da vaga:', e);
+      setVagaDetalhes(vaga);
+    } finally {
+      setDetalhesVagaLoading(false);
+    }
   };
+
+  // ================= FORMATADORES =================
+  const formatarData = (dataString) => new Date(dataString).toLocaleDateString('pt-BR');
 
   const formatarSalario = (min, max, moeda = 'BRL') => {
     if (!min && !max) return 'A combinar';
-    
-    const formatNumber = (num) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: moeda
-      }).format(num);
-    };
-
-    if (min && max) {
-      return `${formatNumber(min)} - ${formatNumber(max)}`;
-    }
+    const formatNumber = (num) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moeda }).format(num);
+    if (min && max) return `${formatNumber(min)} - ${formatNumber(max)}`;
     return min ? `A partir de ${formatNumber(min)}` : `Até ${formatNumber(max)}`;
   };
 
@@ -240,12 +253,7 @@ function Vagas_cadastrada_empresa() {
   };
 
   const getStatusLabel = (status) => {
-    const labels = {
-      'ativo': 'Ativa',
-      'inativo': 'Inativa',
-      'pausado': 'Pausada',
-      'pendente': 'Pendente'
-    };
+    const labels = { 'ativo': 'Ativa', 'inativo': 'Inativa', 'pausado': 'Pausada', 'pendente': 'Pendente' };
     return labels[status] || status;
   };
 
@@ -279,16 +287,13 @@ function Vagas_cadastrada_empresa() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Minhas Vagas</h1>
-            <p className="text-gray-600 mt-1">
-              Gerencie todas as vagas da sua empresa
-            </p>
+            <p className="text-gray-600 mt-1">Gerencie todas as vagas da sua empresa</p>
             {empresaData && (
               <p className="text-sm text-blue-600 mt-2">
                 {empresaData.nome} • {paginacao.total} vaga(s) cadastrada(s)
               </p>
             )}
           </div>
-          
           <div className="mt-4 md:mt-0">
             <button
               onClick={() => navigate('/cadastro-vaga')}
@@ -303,11 +308,8 @@ function Vagas_cadastrada_empresa() {
       {/* Filtros */}
       <div className="bg-white p-6 rounded-lg shadow-md mb-6">
         <div className="flex flex-col md:flex-row gap-4">
-          {/* Filtro por Status */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Filtrar por Status
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Filtrar por Status</label>
             <select
               value={filtros.status}
               onChange={(e) => {
@@ -324,11 +326,8 @@ function Vagas_cadastrada_empresa() {
             </select>
           </div>
 
-          {/* Busca */}
           <div className="flex-1">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Buscar Vagas
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Buscar Vagas</label>
             <input
               type="text"
               value={filtros.busca}
@@ -338,7 +337,6 @@ function Vagas_cadastrada_empresa() {
             />
           </div>
 
-          {/* Botão Atualizar */}
           <div className="flex items-end">
             <button
               onClick={carregarVagas}
@@ -389,46 +387,24 @@ function Vagas_cadastrada_empresa() {
                 <div className="flex-1">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between mb-4">
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                        {vaga.titulo}
-                      </h3>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">{vaga.titulo}</h3>
                       <div className="flex flex-wrap gap-2 mb-3">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(vaga.status)}`}>
-                          {getStatusLabel(vaga.status)}
-                        </span>
-                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">
-                          {vaga.area_atuacao}
-                        </span>
-                        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">
-                          {vaga.nivel_experiencia}
-                        </span>
-                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">
-                          {vaga.modalidade_trabalho}
-                        </span>
+                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(vaga.status)}`}>{getStatusLabel(vaga.status)}</span>
+                        <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm">{vaga.area_atuacao}</span>
+                        <span className="px-3 py-1 bg-purple-100 text-purple-800 rounded-full text-sm">{vaga.nivel_experiencia}</span>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm">{vaga.modalidade_trabalho}</span>
                       </div>
                     </div>
                   </div>
 
                   {/* Detalhes */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600 mb-4">
-                    <div>
-                      <span className="font-medium">Localização:</span> {vaga.localizacao_texto}
-                    </div>
-                    <div>
-                      <span className="font-medium">Tipo:</span> {vaga.tipo_contrato}
-                    </div>
-                    <div>
-                      <span className="font-medium">Vagas:</span> {vaga.quantidade_vagas || 1}
-                    </div>
-                    <div>
-                      <span className="font-medium">Salário:</span> {formatarSalario(vaga.salario_minimo, vaga.salario_maximo, vaga.moeda)}
-                    </div>
-                    <div>
-                      <span className="font-medium">Visualizações:</span> {vaga.visualizacoes || 0}
-                    </div>
-                    <div>
-                      <span className="font-medium">Candidaturas:</span> {vaga.candidaturas || 0}
-                    </div>
+                    <div><span className="font-medium">Localização:</span> {vaga.localizacao_texto}</div>
+                    <div><span className="font-medium">Tipo:</span> {vaga.tipo_contrato}</div>
+                    <div><span className="font-medium">Vagas:</span> {vaga.quantidade_vagas || 1}</div>
+                    <div><span className="font-medium">Salário:</span> {formatarSalario(vaga.salario_minimo, vaga.salario_maximo, vaga.moeda)}</div>
+                    <div><span className="font-medium">Visualizações:</span> {vaga.visualizacoes || 0}</div>
+                    <div><span className="font-medium">Candidaturas:</span> {vaga.candidaturas || 0}</div>
                   </div>
 
                   {/* Descrição resumida */}
@@ -445,9 +421,7 @@ function Vagas_cadastrada_empresa() {
                       <span className="text-sm font-medium text-gray-700 mr-2">Skills:</span>
                       <div className="inline-flex flex-wrap gap-1">
                         {vaga.skills_obrigatorias.slice(0, 5).map((skill, index) => (
-                          <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
-                            {skill}
-                          </span>
+                          <span key={index} className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">{skill}</span>
                         ))}
                         {vaga.skills_obrigatorias.length > 5 && (
                           <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded text-xs">
@@ -458,21 +432,19 @@ function Vagas_cadastrada_empresa() {
                     </div>
                   )}
 
-                  {/* Data de criação */}
-                  <p className="text-xs text-gray-500">
-                    Criada em {formatarData(vaga.created_at)}
-                  </p>
+                  <p className="text-xs text-gray-500">Criada em {formatarData(vaga.created_at)}</p>
                 </div>
 
                 {/* Ações */}
                 <div className="mt-4 lg:mt-0 lg:ml-6 flex flex-col gap-2">
+                  {/* AGORA abre overflow modal em vez de navegar */}
                   <button
-                    onClick={() => navigate(`/vaga/${vaga.id}`)}
+                    onClick={() => abrirDetalhesVaga(vaga)}
                     className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
                   >
                     Ver Detalhes
                   </button>
-                  
+
                   <button
                     onClick={() => navigate(`/editar-vaga/${vaga.id}`)}
                     className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors text-sm"
@@ -480,7 +452,6 @@ function Vagas_cadastrada_empresa() {
                     Editar
                   </button>
 
-                  {/* NOVO: abrir candidatos */}
                   <button
                     onClick={() => abrirCandidatos(vaga)}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors text-sm"
@@ -515,11 +486,9 @@ function Vagas_cadastrada_empresa() {
             >
               Anterior
             </button>
-            
             <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
               {paginacao.pagina} de {paginacao.totalPaginas}
             </span>
-            
             <button
               onClick={() => setPaginacao(prev => ({ ...prev, pagina: prev.pagina + 1 }))}
               disabled={paginacao.pagina === paginacao.totalPaginas}
@@ -531,18 +500,15 @@ function Vagas_cadastrada_empresa() {
         </div>
       )}
 
-      {/* ===================== Modal: Alterar Status ===================== */}
+      {/* Modal: Alterar Status */}
       {modalAberto && vagaSelecionada && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold mb-4">
-              Alterar Status da Vaga
-            </h3>
+            <h3 className="text-lg font-semibold mb-4">Alterar Status da Vaga</h3>
             <p className="text-gray-600 mb-6">
               <strong>Vaga:</strong> {vagaSelecionada.titulo}<br/>
               <strong>Status atual:</strong> {getStatusLabel(vagaSelecionada.status)}
             </p>
-            
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => alterarStatusVaga(vagaSelecionada.id, 'ativo')}
@@ -551,7 +517,6 @@ function Vagas_cadastrada_empresa() {
               >
                 Ativar
               </button>
-              
               <button
                 onClick={() => alterarStatusVaga(vagaSelecionada.id, 'pausado')}
                 disabled={acaoLoading || vagaSelecionada.status === 'pausado'}
@@ -559,7 +524,6 @@ function Vagas_cadastrada_empresa() {
               >
                 Pausar
               </button>
-              
               <button
                 onClick={() => alterarStatusVaga(vagaSelecionada.id, 'inativo')}
                 disabled={acaoLoading || vagaSelecionada.status === 'inativo'}
@@ -567,7 +531,6 @@ function Vagas_cadastrada_empresa() {
               >
                 Inativar
               </button>
-              
               <button
                 onClick={() => setModalAberto(false)}
                 disabled={acaoLoading}
@@ -576,17 +539,12 @@ function Vagas_cadastrada_empresa() {
                 Cancelar
               </button>
             </div>
-            
-            {acaoLoading && (
-              <p className="text-center text-gray-600 mt-4">
-                Atualizando status...
-              </p>
-            )}
+            {acaoLoading && <p className="text-center text-gray-600 mt-4">Atualizando status...</p>}
           </div>
         </div>
       )}
 
-      {/* ===================== Modal: Candidatos (lista) ===================== */}
+      {/* Modal: Candidatos (lista) */}
       <CandidatosModal
         open={candidatosOpen}
         onClose={() => setCandidatosOpen(false)}
@@ -597,13 +555,22 @@ function Vagas_cadastrada_empresa() {
         onVerPerfil={abrirPerfilCompleto}
       />
 
-      {/* ===================== Modal: Perfil Completo ===================== */}
+      {/* Modal: Perfil Completo */}
       <PerfilCandidatoModal
         open={perfilOpen}
         onClose={() => setPerfilOpen(false)}
         loading={detalheLoading}
         error={detalheError}
         candidatura={candidaturaSelecionada}
+      />
+
+      {/* Modal: Detalhes da Vaga (overflow) */}
+      <VagaDetalhesModal
+        open={modalDetalhes}
+        onClose={() => setModalDetalhes(false)}
+        vagaId={vagaDetalhes?.id || vagaSelecionada?.id}
+        vaga={vagaDetalhes || vagaSelecionada}
+        loading={detalhesVagaLoading}
       />
     </div>
   );
