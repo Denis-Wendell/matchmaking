@@ -1,100 +1,145 @@
-import React from 'react';
-import { buildCleanSkills, buildPrincipaisHabilidadesDisplay, formatarTelefone } from '../utils/freelaFormat';
+import React, { useState } from 'react';
 
-export default function CandidatoCard({ candidatura, onVerPerfil }) {
-  const f = candidatura?.freelancer || {};
-  const cleanSkills = buildCleanSkills(f);
-  const principaisDisplay = buildPrincipaisHabilidadesDisplay(f);
+// Badge simpático para status
+const statusBadge = (status = 'pendente') => {
+  const map = {
+    pendente: 'bg-gray-100 text-gray-800',
+    visualizada: 'bg-blue-100 text-blue-800',
+    interessado: 'bg-green-100 text-green-800',
+    nao_interessado: 'bg-yellow-100 text-yellow-800',
+    rejeitada: 'bg-red-100 text-red-800',
+    contratado: 'bg-emerald-100 text-emerald-800',
+  };
+  return map[status] || map.pendente;
+};
+
+export default function CandidatoCard({
+  candidatura,
+  onVerPerfil,
+  statusOptions = [],
+  onChangeStatus, // (novoStatus, feedback) => void
+  saving = false,
+  errorMsg = '',
+}) {
+  const f = candidatura.freelancer || {};
+  const [novoStatus, setNovoStatus] = useState(candidatura.status || 'pendente');
+  const [feedback, setFeedback] = useState(candidatura.feedback_empresa || '');
+
+  const aplicar = () => {
+    if (!onChangeStatus) return;
+    onChangeStatus(novoStatus, feedback);
+  };
 
   return (
-    <div className="border border-gray-200 rounded-lg p-4">
-      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+    <div className="border border-gray-200 rounded-lg p-5 bg-white hover:bg-gray-50 transition">
+      <div className="flex items-start justify-between gap-4">
+        {/* Info do freelancer */}
         <div className="flex-1">
-          <div className="flex items-center gap-3 mb-1">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center font-semibold">
-              {f.nome?.charAt(0) || 'F'}
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-bold">
+              {f.nome?.charAt(0) || 'U'}
             </div>
             <div>
-              <div className="text-lg font-semibold text-gray-900">{f.nome || 'Sem nome'}</div>
+              <div className="text-lg font-semibold text-gray-900">{f.nome || '—'}</div>
               <div className="text-sm text-gray-600">
-                {f.area_atuacao || 'Área não informada'} • {f.nivel_experiencia || 'Nível não informado'} • {f.modalidade_trabalho || 'Modalidade'}
+                {f.area_atuacao || '—'} • {f.nivel_experiencia || '—'} • {f.cidade && f.estado ? `${f.cidade} - ${f.estado}` : 'Localização não informada'}
               </div>
             </div>
           </div>
 
-          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2">
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">Local:</span>{' '}
-              {f.cidade && f.estado ? `${f.cidade} - ${f.estado}` : 'Não informado'}
-            </div>
-            <div className="text-sm text-gray-700">
-              <span className="font-medium">Contato:</span>{' '}
-              {f.email || '—'} {f.telefone ? `• ${formatarTelefone(f.telefone)}` : ''}
-            </div>
-            <div className="text-sm text-gray-700 md:col-span-2">
-              <span className="font-medium">Principais habilidades:</span>{' '}
-              {principaisDisplay || 'Não informado'}
-            </div>
-            <div className="text-sm text-gray-700 md:col-span-2">
-              <span className="font-medium block mb-1">Habilidades (chips):</span>
-              {cleanSkills.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {cleanSkills.map((s, idx) => (
-                    <span
-                      key={idx}
-                      className="px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700 border border-blue-200"
-                    >
-                      {s}
-                    </span>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-gray-500">Não informado</span>
+          {/* Skills rápidas */}
+          {Array.isArray(f.skills_array) && f.skills_array.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {f.skills_array.slice(0, 6).map((s, i) => (
+                <span key={i} className="px-2 py-0.5 rounded-full text-xs bg-blue-50 text-blue-700">{s}</span>
+              ))}
+              {f.skills_array.length > 6 && (
+                <span className="px-2 py-0.5 rounded-full text-xs bg-gray-100 text-gray-600">
+                  +{f.skills_array.length - 6}
+                </span>
               )}
             </div>
-          </div>
+          )}
 
-          {candidatura?.mensagem_candidato && (
-            <div className="mt-3">
-              <div className="text-sm font-medium text-gray-900 mb-1">Mensagem do candidato:</div>
-              <div className="text-sm text-gray-700 bg-gray-50 border border-gray-200 p-3 rounded">
-                {candidatura.mensagem_candidato}
-              </div>
+          {/* Mensagem do candidato */}
+          {candidatura.mensagem_candidato && (
+            <div className="mt-3 text-sm text-gray-700">
+              <span className="font-medium">Mensagem:</span> {candidatura.mensagem_candidato}
             </div>
           )}
+
+          {/* Links */}
+          <div className="mt-3 flex flex-wrap gap-3 text-sm">
+            {f.url_portfolio && (
+              <a href={f.url_portfolio} target="_blank" rel="noreferrer" className="text-gray-600 hover:text-blue-700">Portfólio</a>
+            )}
+            {f.linkedin && (
+              <a href={f.linkedin} target="_blank" rel="noreferrer" className="text-gray-600 hover:text-blue-700">LinkedIn</a>
+            )}
+            {f.github && (
+              <a href={f.github} target="_blank" rel="noreferrer" className="text-gray-600 hover:text-blue-700">GitHub</a>
+            )}
+          </div>
         </div>
 
-        <div className="flex md:flex-col gap-2">
-          <button
-            onClick={() => onVerPerfil?.(candidatura.id)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
-          >
-            Ver perfil completo
-          </button>
-          <a
-            href={f.url_portfolio || '#'}
-            target={f.url_portfolio ? "_blank" : "_self"}
-            rel="noreferrer"
-            className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
-              f.url_portfolio
-                ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                : 'pointer-events-none opacity-50 bg-white text-gray-400 border-gray-200'
-            }`}
-          >
-            Portfólio
-          </a>
-          <a
-            href={f.linkedin || '#'}
-            target={f.linkedin ? "_blank" : "_self"}
-            rel="noreferrer"
-            className={`px-4 py-2 rounded-lg text-sm border transition-colors ${
-              f.linkedin
-                ? 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
-                : 'pointer-events-none opacity-50 bg-white text-gray-400 border-gray-200'
-            }`}
-          >
-            LinkedIn
-          </a>
+        {/* Coluna de ações / status */}
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-end">
+            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${statusBadge(candidatura.status)}`}>
+              {candidatura.status?.replace('_', ' ') || 'pendente'}
+            </span>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Alterar status</label>
+            <select
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={novoStatus}
+              onChange={(e) => setNovoStatus(e.target.value)}
+              disabled={saving}
+            >
+              {statusOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mt-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Feedback (opcional)
+            </label>
+            <textarea
+              rows={2}
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Escreva um breve feedback para o candidato…"
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              disabled={saving}
+            />
+          </div>
+
+          {errorMsg && (
+            <div className="mt-2 text-sm text-red-600">{errorMsg}</div>
+          )}
+
+          <div className="mt-3 flex items-center justify-end gap-2">
+            <button
+              onClick={() => onVerPerfil?.(candidatura.id)}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+            >
+              Ver perfil completo
+            </button>
+            <button
+              onClick={aplicar}
+              disabled={saving}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-60 flex items-center"
+            >
+              {saving && (
+                <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2" />
+              )}
+              {saving ? 'Salvando…' : 'Aplicar'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -11,44 +11,38 @@ const { verificarToken, verificarFreelancer, verificarEmpresa } = require('../mi
 
 const router = express.Router();
 
-// ===== ROTAS PARA FREELANCERS =====
+/* ===================== FREELANCER ===================== */
 
-// Freelancer se candidatar a uma vaga
+// Candidatar-se
 router.post('/', verificarToken, verificarFreelancer, candidatarSe);
 
-// Freelancer listar suas candidaturas
+// Minhas candidaturas
 router.get('/minhas', verificarToken, verificarFreelancer, minhasCandidaturas);
 
-// Freelancer ver detalhes de sua candidatura
-router.get('/:id', verificarToken, verificarFreelancer, detalhesCandidatura);
-
-// Freelancer cancelar sua candidatura
+// Cancelar minha candidatura
 router.delete('/:id', verificarToken, verificarFreelancer, cancelarCandidatura);
 
-// ===== ROTAS PARA EMPRESAS =====
+// *** Detalhes (freelancer) – usar caminho mais específico para não conflitar ***
+router.get('/freelancer/:id', verificarToken, verificarFreelancer, detalhesCandidatura);
 
-// Empresa ver candidatos de uma vaga específica
+
+/* ===================== EMPRESA ===================== */
+
+// Candidatos de uma vaga específica
 router.get('/vaga/:vaga_id', verificarToken, verificarEmpresa, candidatosVaga);
 
-// Empresa atualizar status de uma candidatura
+// Atualizar status de uma candidatura
 router.patch('/:id/status', verificarToken, verificarEmpresa, atualizarStatusCandidatura);
 
-// Empresa ver detalhes de uma candidatura específica
+// Detalhes de uma candidatura (empresa)
 router.get('/empresa/:id', verificarToken, verificarEmpresa, detalhesCandidatura);
 
-// ===== ROTA MISTA (FREELANCER OU EMPRESA) =====
 
-// Ver detalhes de candidatura (determina automaticamente pelo middleware)
+/* ============== ROTA MISTA (EMPRESA OU FREELANCER) ============== */
+// Se quiser manter uma rota mista, deixe-a por último (mais genérica)
 router.get('/detalhes/:id', verificarToken, (req, res, next) => {
-  // Middleware que aceita tanto freelancer quanto empresa
-  if (req.freelancer || req.empresa) {
-    next();
-  } else {
-    res.status(403).json({
-      success: false,
-      message: 'Acesso negado'
-    });
-  }
+  if (req.freelancer || req.empresa) return next();
+  return res.status(403).json({ success: false, message: 'Acesso negado' });
 }, detalhesCandidatura);
 
 module.exports = router;
