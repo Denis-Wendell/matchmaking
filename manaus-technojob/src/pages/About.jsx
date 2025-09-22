@@ -1,12 +1,13 @@
-import React from "react";
-import AboutHero from "../components/about/AboutHero";
-import Mission from "../components/about/Mission";
-import Objectives from "../components/about/Objectives";
-import Technology from "../components/about/Technology";
-import Team from "../components/about/Team";
-import AboutCta from "../components/about/AboutCta";
+import React from 'react';
+import AboutHero from '../components/about/AboutHero';
+import Mission from '../components/about/Mission';
+import Objectives from '../components/about/Objectives';
+import Technology from '../components/about/Technology';
+import Team from '../components/about/Team';
+import AboutCta from '../components/about/AboutCta';
 
-export default function About() {
+
+const About = () => {
   return (
     <main className="bg-white text-slate-900">
       <AboutHero />
@@ -17,4 +18,6 @@ export default function About() {
       <AboutCta />
     </main>
   );
-}
+};
+
+export default About;
