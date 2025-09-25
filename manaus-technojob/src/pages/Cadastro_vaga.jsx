@@ -309,17 +309,16 @@ function CadastroVaga() {
   // ===== DADOS PARA SELECTS (alinhados com os ENUMs do banco) =====
   const areasAtuacao = [
     { value: 'Tecnologia', label: 'Tecnologia' },
-    { value: 'Design', label: 'Design' },
-    { value: 'Marketing', label: 'Marketing' },
-    { value: 'Vendas', label: 'Vendas' },
-    { value: 'Financeiro', label: 'Financeiro' },
-    { value: 'Recursos Humanos', label: 'Recursos Humanos' },
-    { value: 'Operações', label: 'Operações' },
+    { value: 'Design Gráfico', label: 'Design Gráfico' },
+    { value: 'Marketing Digital', label: 'Marketing Digital' },
     { value: 'Consultoria', label: 'Consultoria' },
     { value: 'Educação', label: 'Educação' },
-    { value: 'Saúde', label: 'Saúde' },
+    { value: 'Vendas', label: 'Vendas' },
+    { value: 'Financeiro', label: 'Financeiro' },
     { value: 'Jurídico', label: 'Jurídico' },
-    { value: 'Construção Civil', label: 'Construção Civil' },
+    { value: 'Recursos Humanos', label: 'Recursos Humanos' },
+    { value: 'Redação', label: 'Redação' },
+    { value: 'Tradução', label: 'Tradução' },
     { value: 'Fotografia', label: 'Fotografia' },
     { value: 'Outros', label: 'Outros' }
   ];

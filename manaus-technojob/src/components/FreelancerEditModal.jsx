@@ -139,13 +139,26 @@ export default function FreelancerEditModal({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Área de Atuação *</label>
-                <input
-                  type="text"
+                <select
                   value={data.area_atuacao || ""}
                   onChange={(e) => onChange("area_atuacao", e.target.value)}
                   className="w-full border border-gray-300 rounded-lg px-3 py-2"
                   required
-                />
+                >
+                  <option value="Tecnologia">Tecnologia</option>
+                  <option value="Design Gráfico">Design Gráfico</option>
+                  <option value="Marketing Digital">Marketing Digital</option>
+                  <option value="Consultoria">Consultoria</option>
+                  <option value="Educação">Educação</option>
+                  <option value="Vendas">Vendas</option>
+                  <option value="Financeiro">Financeiro</option>
+                  <option value="Jurídico">Jurídico</option>
+                  <option value="Recursos Humanos">Recursos Humanos</option>
+                  <option value="Redação">Redação</option>
+                  <option value="Tradução">Tradução</option>
+                  <option value="Fotografia">Fotografia</option>
+                  <option value="Outros">Outros</option>
+                </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Nível *</label>

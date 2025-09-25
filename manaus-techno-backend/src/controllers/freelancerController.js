@@ -1,26 +1,128 @@
 // freelancerController.js
 
+const { Op, fn, col, where } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
 const PDFDocument = require('pdfkit');
 
-// Listar todos os freelancers
+/* Helpers para normalizar filtros */
+const normalizarModalidade = (v) => {
+  if (!v) return null;
+  const s = String(v).toLowerCase().trim();
+  const map = {
+    remoto: 'remoto', remote: 'remoto',
+    presencial: 'presencial', onsite: 'presencial', local: 'presencial',
+    hibrido: 'hibrido', 'híbrido': 'hibrido', hybrid: 'hibrido', misto: 'hibrido'
+  };
+  return map[s] || null;
+};
+
+const normalizarNivel = (v) => {
+  if (!v) return null;
+  const s = String(v).toLowerCase().trim();
+  const map = {
+    junior: 'junior', 'júnior': 'junior',
+    pleno: 'pleno',
+    senior: 'senior', 'sênior': 'senior',
+    especialista: 'especialista'
+  };
+  return map[s] || null;
+};
+
+/**
+ * Listar freelancers com paginação e filtros.
+ * Query params aceitos:
+ * - pagina (default 1)
+ * - limite (default 12, max 100)
+ * - status (default 'ativo')
+ * - area (string; contém / iLike)
+ * - modalidade (remoto|presencial|hibrido)
+ * - nivel (junior|pleno|senior|especialista)
+ * - busca (nome, email, area, cidade, estado, resumo, experiencia, certificacoes, principais_habilidades, skills_array, idiomas)
+ * - ordenarPor (valor_hora|ultimo_login|created_at) default created_at
+ * - ordem (ASC|DESC) default DESC
+ */
 const listarFreelancers = async (req, res) => {
   try {
-    const freelancers = await Freelancer.findAll({
-      where: { status: 'ativo' },
-      order: [['created_at', 'DESC']],
-      attributes: { exclude: ['senha_hash'] }
+    const pagina = Math.max(parseInt(req.query.pagina || '1', 10), 1);
+    const limite = Math.min(Math.max(parseInt(req.query.limite || '12', 10), 1), 100);
+    const offset = (pagina - 1) * limite;
+
+    const {
+      status = 'ativo',
+      area,
+      modalidade,
+      nivel,
+      busca,
+      ordenarPor,
+      ordem,
+    } = req.query;
+
+    const whereBase = {};
+    if (status) whereBase.status = String(status).toLowerCase().trim();
+
+    if (area && area !== 'todas') {
+      whereBase.area_atuacao = { [Op.iLike]: `%${area}%` };
+    }
+
+    const mod = normalizarModalidade(modalidade);
+    if (mod) whereBase.modalidade_trabalho = mod;
+
+    const niv = normalizarNivel(nivel);
+    if (niv) whereBase.nivel_experiencia = niv;
+
+    // Busca textual tolerante
+    const filtrosBusca = [];
+    if (busca && String(busca).trim()) {
+      const q = String(busca).trim();
+      const term = `%${q}%`;
+
+      filtrosBusca.push({
+        [Op.or]: [
+          { nome: { [Op.iLike]: term } },
+          { email: { [Op.iLike]: term } },
+          { profissao: { [Op.iLike]: term } },
+          { area_atuacao: { [Op.iLike]: term } },
+          { cidade: { [Op.iLike]: term } },
+          { estado: { [Op.iLike]: term } },
+          { resumo_profissional: { [Op.iLike]: term } },
+          { experiencia_profissional: { [Op.iLike]: term } },
+          { certificacoes: { [Op.iLike]: term } },
+          { principais_habilidades: { [Op.iLike]: term } },
+
+          // Arrays → concatena e procura como texto
+          where(fn('array_to_string', col('skills_array'), ','), { [Op.iLike]: term }),
+          where(fn('array_to_string', col('idiomas'), ','), { [Op.iLike]: term }),
+        ],
+      });
+    }
+
+    const ordemCol = ['valor_hora', 'ultimo_login', 'created_at'].includes(ordenarPor)
+      ? ordenarPor
+      : 'created_at';
+    const ordemDir = (ordem || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+
+    const { rows, count } = await Freelancer.findAndCountAll({
+      where: filtrosBusca.length ? { [Op.and]: [whereBase, ...filtrosBusca] } : whereBase,
+      order: [[ordemCol, ordemDir]],
+      limit: limite,
+      offset,
+      attributes: { exclude: ['senha_hash'] },
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: 'Freelancers listados com sucesso',
-      data: freelancers,
+      data: {
+        freelancers: rows,
+        total: count,
+        totalPaginas: Math.max(Math.ceil(count / limite), 1),
+        pagina,
+        limite,
+      },
     });
-
   } catch (error) {
     console.error('Erro ao listar freelancers:', error);
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
     });
@@ -129,6 +231,7 @@ const meuPerfil = async (req, res) => {
     });
   }
 };
+
 // === SUBSTITUA APENAS ESTA FUNÇÃO ===
 function escreverCurriculoPdf(doc, f) {
   // --------- Paleta / tipografia ----------
@@ -418,7 +521,6 @@ function escreverCurriculoPdf(doc, f) {
   }
 }
 
-
 // ===== empresa baixa cv de um candidato =====
 const gerarCurriculoPdf = async (req, res) => {
   try {
@@ -461,7 +563,6 @@ const gerarMeuCurriculoPdf = async (req, res) => {
     res.status(500).json({ success: false, message: 'Erro ao gerar PDF' });
   }
 };
-
 
 module.exports = {
   listarFreelancers,

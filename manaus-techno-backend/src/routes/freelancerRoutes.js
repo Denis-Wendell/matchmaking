@@ -1,7 +1,6 @@
-// src/routes/freelancerRoutes.js
 const express = require('express');
 const {
-  listarFreelancers,
+  listarFreelancers,          // pode ser a versão já paginada/filtrada
   buscarFreelancerPorId,
   atualizarPerfil,
   meuPerfil,
@@ -12,15 +11,16 @@ const { verificarToken, verificarEmpresa, verificarFreelancer } = require('../mi
 
 const router = express.Router();
 
-/* ===== Rotas protegidas (freelancer logado) — coloque ANTES das rotas com :id ===== */
-router.get('/me/perfil', verificarToken, meuPerfil);              // Meu perfil
-router.put('/me/perfil', verificarToken, atualizarPerfil);        // Atualizar meu perfil
-router.get('/me/curriculo.pdf', verificarToken, verificarFreelancer, gerarMeuCurriculoPdf); // Baixar meu currículo
+// Rotas do próprio freelancer (antes das :id)
+router.get('/me/perfil', verificarToken, meuPerfil);
+router.put('/me/perfil', verificarToken, atualizarPerfil);
+router.get('/me/curriculo.pdf', verificarToken, verificarFreelancer, gerarMeuCurriculoPdf);
 
-/* ===== Rotas públicas ===== */
-router.get('/', listarFreelancers);                               // Listar todos
+// Lista paginada/filtrada (apenas UMA /)
+router.get('/', listarFreelancers);
 
-router.get('/:id/curriculo.pdf', verificarToken, verificarEmpresa, gerarCurriculoPdf); // Empresa baixa currículo do candidato
-router.get('/:id', buscarFreelancerPorId);                        // Buscar por ID
+// Rotas com :id (currículo antes do :id)
+router.get('/:id/curriculo.pdf', verificarToken, verificarEmpresa, gerarCurriculoPdf);
+router.get('/:id', buscarFreelancerPorId);
 
 module.exports = router;
