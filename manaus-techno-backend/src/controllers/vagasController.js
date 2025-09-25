@@ -1,3 +1,5 @@
+//vagasController.js
+
 const Vaga = require('../models/Vaga');
 const Empresa = require('../models/Empresa');
 

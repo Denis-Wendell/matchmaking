@@ -1,3 +1,5 @@
+//authController.js
+
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
@@ -56,8 +58,6 @@ const normalizarModalidadeTrabalho = (modalidade) => {
   if (!modalidade) return 'remoto'; // valor padrão
   
   const modalidadeLower = modalidade.toLowerCase().trim();
-  
-  // Mapeamento baseado nos valores mais comuns em ENUMs brasileiros
   const mapeamento = {
     'remoto': 'remoto',
     'remote': 'remoto',
@@ -69,17 +69,43 @@ const normalizarModalidadeTrabalho = (modalidade) => {
     'hybrid': 'hibrido',
     'misto': 'hibrido'
   };
-  
   return mapeamento[modalidadeLower] || 'remoto';
 };
 
-// Função auxiliar para normalizar status de empresa
+/* ============================================================
+   COMPAT LAYER: entrada para Empresa (BD atual)
+   - status salvo como 'ativa'/'inativa'/'pendente'/'bloqueada'
+   - tamanho_empresa salvo capitalizado/acentuado
+   ============================================================ */
+const mapInEmpresaStatus = (v) => {
+  if (!v) return 'ativa'; // default no BD atual
+  const s = String(v).toLowerCase().trim();
+  const map = {
+    'ativo':'ativa', 'ativa':'ativa',
+    'inativo':'inativa', 'inativa':'inativa',
+    'pendente':'pendente',
+    'bloqueado':'bloqueada', 'bloqueada':'bloqueada'
+  };
+  return map[s] || 'ativa';
+};
+
+const mapInTamanhoEmpresa = (v) => {
+  if (!v) return 'Pequena';
+  const t = String(v).toLowerCase().trim();
+  const map = {
+    'startup':'Startup',
+    'pequena':'Pequena','pequeno':'Pequena','small':'Pequena',
+    'media':'Média','média':'Média','medio':'Média','médio':'Média','medium':'Média',
+    'grande':'Grande','big':'Grande','large':'Grande',
+    'multinacional':'Multinacional','multinational':'Multinacional'
+  };
+  return map[t] || 'Pequena';
+};
+
+// (Mantidos) normalizadores genéricos em minúsculo — úteis para outras partes
 const normalizarStatusEmpresa = (status) => {
-  if (!status) return 'ativo'; // valor padrão
-  
+  if (!status) return 'ativo';
   const statusLower = status.toLowerCase().trim();
-  
-  // Mapeamento baseado nos valores reais do ENUM: ativo, inativo, pausado, pendente
   const mapeamento = {
     'ativo': 'ativo',
     'ativa': 'ativo',
@@ -93,17 +119,12 @@ const normalizarStatusEmpresa = (status) => {
     'pendente': 'pendente',
     'pending': 'pendente'
   };
-  
   return mapeamento[statusLower] || 'ativo';
 };
 
-// Função auxiliar para normalizar tamanho de empresa
 const normalizarTamanhoEmpresa = (tamanho) => {
-  if (!tamanho) return 'pequena'; // valor padrão
-  
+  if (!tamanho) return 'pequena';
   const tamanhoLower = tamanho.toLowerCase().trim();
-  
-  // Mapeamento baseado nos valores reais do ENUM: startup, pequena, media, grande, multinacional
   const mapeamento = {
     'startup': 'startup',
     'pequena': 'pequena',
@@ -120,7 +141,6 @@ const normalizarTamanhoEmpresa = (tamanho) => {
     'multinacional': 'multinacional',
     'multinational': 'multinacional'
   };
-  
   return mapeamento[tamanhoLower] || 'pequena';
 };
 
@@ -230,7 +250,7 @@ const registrarEmpresa = async (req, res) => {
       });
     }
 
-    // Criar empresa
+    // Criar empresa (compat: salva no formato que o BD atual aceita)
     const novaEmpresa = await Empresa.create({
       nome,
       cnpj,
@@ -254,7 +274,7 @@ const registrarEmpresa = async (req, res) => {
       areas_atuacao: sanitizarArray(areas_atuacao),
       beneficios_array: sanitizarArray(beneficios_array),
       tecnologias_usadas: sanitizarArray(tecnologias_usadas),
-      status: normalizarStatusEmpresa('ativo'), // Usar função de normalização
+      status:'ativo', // -> 'ativa' (BD atual)
       verificada: false,
     });
 
@@ -298,7 +318,7 @@ const login = async (req, res) => {
     }
 
     let usuario = null;
-    let emailField = tipo === 'freelancer' ? 'email' : 'email_corporativo';
+    const emailField = tipo === 'freelancer' ? 'email' : 'email_corporativo';
 
     // Buscar usuário baseado no tipo
     if (tipo === 'freelancer') {
@@ -318,9 +338,15 @@ const login = async (req, res) => {
       });
     }
 
-    // Verificar se está ativo (status normalizado)
-    const statusEsperado = tipo === 'freelancer' ? 'ativo' : normalizarStatusEmpresa('ativo');
-    if (usuario.status !== statusEsperado) {
+    // Verificar se está ativo (status)
+    let ativoOk = false;
+    if (tipo === 'freelancer') {
+      ativoOk = (usuario.status === 'ativo');
+    } else {
+      // Compat: aceita 'ativa' (BD atual) e 'ativo' (caso exista)
+      ativoOk = ['ativa', 'ativo'].includes(usuario.status);
+    }
+    if (!ativoOk) {
       return res.status(401).json({
         success: false,
         message: 'Conta desativada ou pendente',
@@ -367,7 +393,6 @@ const login = async (req, res) => {
 // Verificar token (compatível com seu middleware existente)
 const verificarAuth = async (req, res) => {
   try {
-    // Seu middleware define req.freelancer, req.empresa e req.tipoUsuario
     const tipoUsuario = req.tipoUsuario;
     const usuario = req.freelancer || req.empresa;
     
@@ -398,8 +423,6 @@ const verificarAuth = async (req, res) => {
 // Logout (compatível com seu middleware)
 const logout = async (req, res) => {
   try {
-    // Se você mantiver uma blacklist de tokens, adicione aqui
-    // Por enquanto, apenas confirma o logout
     res.json({
       success: true,
       message: 'Logout realizado com sucesso',

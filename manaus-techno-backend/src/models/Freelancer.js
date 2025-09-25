@@ -1,4 +1,3 @@
-//Freelancer.js
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
@@ -94,7 +93,7 @@ const Freelancer = sequelize.define('Freelancer', {
     },
   },
   nivel_experiencia: {
-    type: DataTypes.ENUM('junior', 'pleno', 'senior', 'especialista'), // Em minúsculo
+    type: DataTypes.ENUM('junior', 'pleno', 'senior', 'especialista'),
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Nível de experiência é obrigatório' },
@@ -126,7 +125,7 @@ const Freelancer = sequelize.define('Freelancer', {
   modalidade_trabalho: {
     type: DataTypes.ENUM('remoto', 'presencial', 'hibrido'),
     allowNull: true,
-    defaultValue: 'remoto', // Em minúsculo
+    defaultValue: 'remoto',
   },
   resumo_profissional: {
     type: DataTypes.TEXT,
@@ -197,7 +196,7 @@ const Freelancer = sequelize.define('Freelancer', {
   portfolio_projetos: {
     type: DataTypes.JSONB,
     allowNull: true,
-    defaultValue: {},
+    defaultValue: [], // <- atualizado para array vazio
   },
   configuracoes_usuario: {
     type: DataTypes.JSONB,
@@ -232,7 +231,6 @@ const Freelancer = sequelize.define('Freelancer', {
     }
   },
   hooks: {
-    // Hook para criptografar senha antes de salvar
     beforeCreate: async (freelancer) => {
       if (freelancer.senha_hash && !freelancer.senha_hash.startsWith('$2')) {
         freelancer.senha_hash = await bcrypt.hash(freelancer.senha_hash, 10);
@@ -246,18 +244,15 @@ const Freelancer = sequelize.define('Freelancer', {
   },
 });
 
-// Método para verificar senha
 Freelancer.prototype.verificarSenha = async function(senha) {
   return bcrypt.compare(senha, this.senha_hash);
 };
 
-// Método para atualizar último login
 Freelancer.prototype.atualizarUltimoLogin = async function() {
   this.ultimo_login = new Date();
   return this.save();
 };
 
-// Método para retornar dados seguros (sem senha)
 Freelancer.prototype.toJSON = function() {
   const values = { ...this.get() };
   delete values.senha_hash;

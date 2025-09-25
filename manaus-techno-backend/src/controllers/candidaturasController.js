@@ -1,3 +1,5 @@
+//candidaturasController.js
+
 const Candidatura = require('../models/Candidatura');
 const Vaga = require('../models/Vaga');
 const Freelancer = require('../models/Freelancer');

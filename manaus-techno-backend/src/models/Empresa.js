@@ -1,4 +1,3 @@
-//Empresa.js
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
@@ -90,7 +89,7 @@ const Empresa = sequelize.define('Empresa', {
     },
   },
   tamanho_empresa: {
-    type: DataTypes.ENUM('Startup', 'Pequena', 'Média', 'Grande', 'Multinacional'),
+    type: DataTypes.ENUM('startup','pequena','media','grande','multinacional'),
     allowNull: false,
     validate: {
       notEmpty: { msg: 'Tamanho da empresa é obrigatório' },
@@ -170,9 +169,9 @@ const Empresa = sequelize.define('Empresa', {
     defaultValue: {},
   },
   status: {
-    type: DataTypes.ENUM('ativa', 'inativa', 'pendente', 'bloqueada'),
+    type: DataTypes.ENUM('ativo', 'inativo', 'pendente', 'bloqueado', 'pausado'),
     allowNull: true,
-    defaultValue: 'ativa',
+    defaultValue: 'ativo',
   },
   verificada: {
     type: DataTypes.BOOLEAN,
@@ -184,7 +183,7 @@ const Empresa = sequelize.define('Empresa', {
     allowNull: true,
   },
 }, {
-  tableName: 'empresas', // Corrigido para 'empresas'
+  tableName: 'empresas',
   timestamps: true,
   createdAt: 'created_at',
   updatedAt: 'updated_at',
@@ -221,11 +220,20 @@ Empresa.prototype.atualizarUltimoLogin = async function() {
   return this.save();
 };
 
-// Método para retornar dados seguros (sem senha)
+// Método para retornar dados seguros (sem senha) com NORMALIZAÇÃO de saída
 Empresa.prototype.toJSON = function() {
-  const values = { ...this.get() };
-  delete values.senha_hash;
-  return values;
+  const v = { ...this.get() };
+  delete v.senha_hash;
+
+  // status -> masculino/minúsculo
+  const mapStatus = { 'ativa':'ativo', 'inativa':'inativo', 'pendente':'pendente', 'bloqueada':'bloqueado' };
+  if (v.status && mapStatus[v.status]) v.status = mapStatus[v.status];
+
+  // tamanho_empresa -> minúsculo sem acento
+  const mapTam = { 'Startup':'startup', 'Pequena':'pequena', 'Média':'media', 'Grande':'grande', 'Multinacional':'multinacional' };
+  if (v.tamanho_empresa && mapTam[v.tamanho_empresa]) v.tamanho_empresa = mapTam[v.tamanho_empresa];
+
+  return v;
 };
 
 module.exports = Empresa;

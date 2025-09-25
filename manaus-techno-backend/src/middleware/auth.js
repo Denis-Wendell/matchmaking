@@ -1,3 +1,5 @@
+// middleware/auth.js
+
 const jwt = require('jsonwebtoken');
 const Freelancer = require('../models/Freelancer');
 const Empresa = require('../models/Empresa');
@@ -32,8 +34,8 @@ const verificarToken = async (req, res, next) => {
         usuario = await Empresa.findByPk(decoded.id);
         console.log('🔍 [DEBUG] Empresa encontrada:', !!usuario, 'Status:', usuario?.status);
         
-        // CORREÇÃO: Usar 'ativo' em vez de 'ativa'
-        if (usuario && usuario.status === 'ativo') {
+        // ✅ Compat: aceita 'ativa' (ENUM atual do BD) e 'ativo' (caso algum seed novo use)
+        if (usuario && ['ativa', 'ativo'].includes(usuario.status)) {
           req.empresa = usuario;
           req.tipoUsuario = 'empresa';
           console.log('✅ [DEBUG] req.empresa definido:', usuario.nome);

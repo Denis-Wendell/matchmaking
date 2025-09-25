@@ -1,10 +1,62 @@
+// empresaController.js
+
 const Empresa = require('../models/Empresa');
+
+/* ========= COMPAT LAYER (entrada) =========
+   Mapeia valores que o front pode enviar para
+   o formato que o BD atual aceita.
+*/
+const mapInEmpresaStatus = (v) => {
+  if (!v) return undefined;
+  const s = String(v).toLowerCase().trim();
+  const map = {
+    'ativo': 'ativa',
+    'ativa': 'ativa',
+    'inativo': 'inativa',
+    'inativa': 'inativa',
+    'pendente': 'pendente',
+    'bloqueado': 'bloqueada',
+    'bloqueada': 'bloqueada',
+  };
+  return map[s] || 'ativa';
+};
+
+const mapInTamanhoEmpresa = (v) => {
+  if (!v) return undefined;
+  const t = String(v).toLowerCase().trim();
+  const map = {
+    'startup': 'Startup',
+    'pequena': 'Pequena',
+    'pequeno': 'Pequena',
+    'small': 'Pequena',
+    'media': 'Média',
+    'média': 'Média',
+    'medio': 'Média',
+    'médio': 'Média',
+    'medium': 'Média',
+    'grande': 'Grande',
+    'big': 'Grande',
+    'large': 'Grande',
+    'multinacional': 'Multinacional',
+    'multinational': 'Multinacional',
+  };
+  return map[t] || 'Pequena';
+};
+
+const toArray = (val) => {
+  if (Array.isArray(val)) return val.filter(Boolean);
+  if (typeof val === 'string') {
+    // aceita "a,b,c" ou "a; b; c"
+    return val.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+};
 
 // Listar todas as empresas
 const listarEmpresas = async (req, res) => {
   try {
     const empresas = await Empresa.findAll({
-      where: { status: 'ativa' },
+      where: { status: 'ativa' }, // BD atual usa 'ativa'
       order: [['created_at', 'DESC']],
       attributes: { exclude: ['senha_hash'] }
     });
@@ -68,6 +120,25 @@ const atualizarPerfil = async (req, res) => {
     delete dadosParaAtualizar.cnpj;
     delete dadosParaAtualizar.created_at;
     delete dadosParaAtualizar.updated_at;
+
+    // COMPAT: status e tamanho_empresa para o formato do BD atual
+    if (dadosParaAtualizar.status != null) {
+      dadosParaAtualizar.status = mapInEmpresaStatus(dadosParaAtualizar.status);
+    }
+    if (dadosParaAtualizar.tamanho_empresa != null) {
+      dadosParaAtualizar.tamanho_empresa = mapInTamanhoEmpresa(dadosParaAtualizar.tamanho_empresa);
+    }
+
+    // Garantir arrays quando vierem string
+    if (dadosParaAtualizar.areas_atuacao != null) {
+      dadosParaAtualizar.areas_atuacao = toArray(dadosParaAtualizar.areas_atuacao);
+    }
+    if (dadosParaAtualizar.beneficios_array != null) {
+      dadosParaAtualizar.beneficios_array = toArray(dadosParaAtualizar.beneficios_array);
+    }
+    if (dadosParaAtualizar.tecnologias_usadas != null) {
+      dadosParaAtualizar.tecnologias_usadas = toArray(dadosParaAtualizar.tecnologias_usadas);
+    }
 
     const [numLinhasAfetadas, empresasAtualizadas] = await Empresa.update(
       dadosParaAtualizar,
@@ -136,7 +207,7 @@ const buscarPorSetor = async (req, res) => {
     const empresas = await Empresa.findAll({
       where: { 
         setor_atuacao: setor,
-        status: 'ativa'
+        status: 'ativa' // BD atual
       },
       order: [['created_at', 'DESC']],
       attributes: { exclude: ['senha_hash'] }
@@ -163,7 +234,7 @@ const buscarVerificadas = async (req, res) => {
     const empresas = await Empresa.findAll({
       where: { 
         verificada: true,
-        status: 'ativa'
+        status: 'ativa' // BD atual
       },
       order: [['created_at', 'DESC']],
       attributes: { exclude: ['senha_hash'] }

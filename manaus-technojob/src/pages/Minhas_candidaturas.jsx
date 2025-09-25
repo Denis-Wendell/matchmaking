@@ -499,13 +499,7 @@ function Minhas_candidaturas() {
                     Ver Vaga
                   </button>
                   
-                  <button
-                    onClick={() => verDetalhesCandidatura(candidatura.id)}
-                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                  >
-                    Ver Detalhes
-                  </button>
-                  
+                                    
                   {/* Só permitir cancelamento se não foi processada */}
                   {['pendente', 'visualizada'].includes(candidatura.status) && candidatura.vaga.status === 'ativo' && (
                     <button

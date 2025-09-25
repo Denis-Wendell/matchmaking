@@ -103,7 +103,7 @@ function Match_empresa() {
       <div className="bg-white">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">Match de Freelancers</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">Match de Conhecimento</h1>
             <p className="text-xl text-gray-600">Encontre os freelancers mais compatíveis com suas vagas</p>
           </div>
         </div>
