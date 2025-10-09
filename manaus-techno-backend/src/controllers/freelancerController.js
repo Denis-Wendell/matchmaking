@@ -1,6 +1,6 @@
 // freelancerController.js
 
-const { Op, fn, col, where } = require('sequelize');
+const { Op, fn, col, where, literal } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
 const PDFDocument = require('pdfkit');
 
@@ -30,13 +30,9 @@ const normalizarNivel = (v) => {
 
 /**
  * Listar freelancers com paginação e filtros.
- * Query params aceitos:
- * - pagina (default 1)
- * - limite (default 12, max 100)
- * - status (default 'ativo')
- * - area (string; contém / iLike)
- * - modalidade (remoto|presencial|hibrido)
- * - nivel (junior|pleno|senior|especialista)
+ * Query params:
+ * - pagina (1), limite (12, max 100), status ('ativo')
+ * - area, modalidade (remoto|presencial|hibrido), nivel (junior|pleno|senior|especialista)
  * - busca (nome, email, area, cidade, estado, resumo, experiencia, certificacoes, principais_habilidades, skills_array, idiomas)
  * - ordenarPor (valor_hora|ultimo_login|created_at) default created_at
  * - ordem (ASC|DESC) default DESC
@@ -61,6 +57,7 @@ const listarFreelancers = async (req, res) => {
     if (status) whereBase.status = String(status).toLowerCase().trim();
 
     if (area && area !== 'todas') {
+      // pode criar índice trgm para área se necessário
       whereBase.area_atuacao = { [Op.iLike]: `%${area}%` };
     }
 
@@ -70,31 +67,48 @@ const listarFreelancers = async (req, res) => {
     const niv = normalizarNivel(nivel);
     if (niv) whereBase.nivel_experiencia = niv;
 
-    // Busca textual tolerante
+    // -------- BUSCA sem acento usando wrapper unaccent_immutable --------
     const filtrosBusca = [];
     if (busca && String(busca).trim()) {
       const q = String(busca).trim();
-      const term = `%${q}%`;
+      const esc = q.replace(/'/g, "''"); // escape simples para literal SQL
+
+      const iLikeUnaccent = (campo) =>
+        where(
+          fn('public.unaccent_immutable', col(campo)),
+          { [Op.iLike]: literal(`public.unaccent_immutable('%${esc}%')`) }
+        );
 
       filtrosBusca.push({
         [Op.or]: [
-          { nome: { [Op.iLike]: term } },
-          { email: { [Op.iLike]: term } },
-          { profissao: { [Op.iLike]: term } },
-          { area_atuacao: { [Op.iLike]: term } },
-          { cidade: { [Op.iLike]: term } },
-          { estado: { [Op.iLike]: term } },
-          { resumo_profissional: { [Op.iLike]: term } },
-          { experiencia_profissional: { [Op.iLike]: term } },
-          { certificacoes: { [Op.iLike]: term } },
-          { principais_habilidades: { [Op.iLike]: term } },
+          iLikeUnaccent('nome'),
+          iLikeUnaccent('email'),
+          iLikeUnaccent('profissao'),
+          iLikeUnaccent('area_atuacao'),
+          iLikeUnaccent('cidade'),
+          iLikeUnaccent('estado'),
+          iLikeUnaccent('resumo_profissional'),
+          iLikeUnaccent('experiencia_profissional'),
+          iLikeUnaccent('certificacoes'),
+          iLikeUnaccent('principais_habilidades'),
 
-          // Arrays → concatena e procura como texto
-          where(fn('array_to_string', col('skills_array'), ','), { [Op.iLike]: term }),
-          where(fn('array_to_string', col('idiomas'), ','), { [Op.iLike]: term }),
+          // Arrays
+          // 1) skills_array: contém elemento igual ao termo (match exato do item)
+          { skills_array: { [Op.contains]: [q] } },
+
+          // 2) idiomas/skills como texto (sem acento) — útil quando não é match exato
+          where(
+            fn('public.unaccent_immutable', fn('array_to_string', col('skills_array'), ',')),
+            { [Op.iLike]: literal(`public.unaccent_immutable('%${esc}%')`) }
+          ),
+          where(
+            fn('public.unaccent_immutable', fn('array_to_string', col('idiomas'), ',')),
+            { [Op.iLike]: literal(`public.unaccent_immutable('%${esc}%')`) }
+          ),
         ],
       });
     }
+    // -------------------------------------------------------------------
 
     const ordemCol = ['valor_hora', 'ultimo_login', 'created_at'].includes(ordenarPor)
       ? ordenarPor
@@ -232,79 +246,36 @@ const meuPerfil = async (req, res) => {
   }
 };
 
-// === SUBSTITUA APENAS ESTA FUNÇÃO ===
+// === Função de escrita do PDF (mantida) ===
 function escreverCurriculoPdf(doc, f) {
-  // --------- Paleta / tipografia ----------
   const C = {
-    text: '#111827',       // gray-900
-    sub:  '#374151',       // gray-700
-    mute: '#6B7280',       // gray-500
-    line: '#E5E7EB',       // gray-200
-    chip: '#F3F4F6',       // gray-100
-    acc:  '#2563EB',       // blue-600
-    card: '#F9FAFB',       // gray-50
+    text: '#111827', sub:  '#374151', mute: '#6B7280',
+    line: '#E5E7EB', chip: '#F3F4F6', acc:  '#2563EB', card: '#F9FAFB',
   };
 
-  // Margens uniformes (bordas da folha bem definidas)
-  const MARGIN = 56; // ~2cm
+  const MARGIN = 56;
   const PAGE = {
     left: MARGIN,
     right: doc.page.width - MARGIN,
     width: doc.page.width - MARGIN * 2,
     top: MARGIN,
-    bottom: doc.page.height - MARGIN, // conteúdo não ultrapassa esta linha
+    bottom: doc.page.height - MARGIN,
   };
 
-  const H = {
-    h1: 22,
-    h2: 13.5,
-    body: 11,
-    small: 10,
-  };
+  const H = { h1: 22, h2: 13.5, body: 11, small: 10 };
 
-  // --------- Helpers ----------
   const safe = (v, d='') => (v == null ? d : String(v));
   const arr  = (v) => Array.isArray(v) ? v.filter(Boolean) : [];
   const money = (v) => (v == null || v === '' ? null : `R$ ${Number(v).toFixed(2).replace('.', ',')}`);
 
   let y = PAGE.top;
 
-  const ensure = (need=60) => {
-    if (y + need > PAGE.bottom) {
-      doc.addPage();
-      y = PAGE.top;
-    }
-  };
-
-  const hr = (pad=12) => {
-    ensure(20);
-    doc
-      .save()
-      .moveTo(PAGE.left, y)
-      .lineTo(PAGE.right, y)
-      .lineWidth(1)
-      .strokeColor(C.line)
-      .stroke()
-      .restore();
-    y += pad;
-  };
-
-  const h1 = (t) => {
-    ensure(40);
-    doc.fillColor(C.text).fontSize(H.h1).text(t, PAGE.left, y, { width: PAGE.width });
-    y = doc.y + 8;
-  };
-
-  const section = (title) => {
-    ensure(34);
-    // barra fina + título
-    doc.save().rect(PAGE.left, y + 2, 3.5, 14).fill(C.acc).restore();
-    doc.fillColor(C.text).fontSize(H.h2).text(title, PAGE.left + 10, y, { width: PAGE.width - 10 });
-    y = doc.y + 8;
-  };
+  const ensure = (need=60) => { if (y + need > PAGE.bottom) { doc.addPage(); y = PAGE.top; } };
+  const hr = (pad=12) => { ensure(20); doc.save().moveTo(PAGE.left, y).lineTo(PAGE.right, y).lineWidth(1).strokeColor(C.line).stroke().restore(); y += pad; };
+  const h1 = (t) => { ensure(40); doc.fillColor(C.text).fontSize(H.h1).text(t, PAGE.left, y, { width: PAGE.width }); y = doc.y + 8; };
+  const section = (title) => { ensure(34); doc.save().rect(PAGE.left, y + 2, 3.5, 14).fill(C.acc).restore(); doc.fillColor(C.text).fontSize(H.h2).text(title, PAGE.left + 10, y, { width: PAGE.width - 10 }); y = doc.y + 8; };
 
   const labelRow = (pairs, gap = 18) => {
-    // pairs: [{label, value}] — 2 colunas responsivas
     const colW = (PAGE.width - gap) / 2;
     ensure(36);
     const L = pairs[0], R = pairs[1];
@@ -321,41 +292,24 @@ function escreverCurriculoPdf(doc, f) {
     y = Math.max(yStart, yAfterL, yAfterR) + 10;
   };
 
-  const paragraph = (text) => {
-    if (!text || !String(text).trim()) return;
-    ensure(24);
-    doc.fontSize(H.body).fillColor(C.sub)
-      .text(String(text), PAGE.left, y, { width: PAGE.width, align: 'left', lineGap: 2 });
-    y = doc.y + 10;
-  };
+  const paragraph = (text) => { if (!text || !String(text).trim()) return; ensure(24); doc.fontSize(H.body).fillColor(C.sub).text(String(text), PAGE.left, y, { width: PAGE.width, align: 'left', lineGap: 2 }); y = doc.y + 10; };
 
-  const chips = (items, maxPerLine=6) => {
+  const chips = (items) => {
     const list = arr(items);
     if (!list.length) return;
     ensure(28);
     let x = PAGE.left, lineH = 0;
     const padX = 8, padY = 5, r = 8, gap = 8;
-
     doc.fontSize(10);
     list.forEach((txt) => {
       const label = String(txt);
       const w = doc.widthOfString(label) + padX * 2;
       const h = doc.currentLineHeight() + padY * 2;
-
-      if (x + w > PAGE.right) { // quebra de linha
-        y += lineH + 6;
-        ensure(24);
-        x = PAGE.left;
-        lineH = 0;
-      }
-
+      if (x + w > PAGE.right) { y += lineH + 6; ensure(24); x = PAGE.left; lineH = 0; }
       doc.save().roundedRect(x, y, w, h, r).fill(C.chip).restore();
       doc.fillColor(C.text).text(label, x + padX, y + padY, { width: w - padX*2, align: 'center' });
-
-      x += w + gap;
-      lineH = Math.max(lineH, h);
+      x += w + gap; lineH = Math.max(lineH, h);
     });
-
     y += lineH + 10;
   };
 
@@ -365,141 +319,63 @@ function escreverCurriculoPdf(doc, f) {
     ensure(18);
     arrLines.forEach(line => {
       ensure(18);
-      // bolinha
       doc.save().circle(PAGE.left + 3, y + 6, 2).fill(C.acc).restore();
-      // texto
-      doc.fillColor(C.sub).fontSize(H.body).text(String(line), PAGE.left + 12, y, {
-        width: PAGE.width - 12, lineGap: 2,
-      });
+      doc.fillColor(C.sub).fontSize(H.body).text(String(line), PAGE.left + 12, y, { width: PAGE.width - 12, lineGap: 2 });
       y = doc.y + 6;
     });
   };
 
   const card = (drawContent) => {
-    // bloco com fundo suave para dados “de consulta”
     const topY = y;
     const pad = 12;
     ensure(60);
-    // fundo
     doc.save().roundedRect(PAGE.left, topY, PAGE.width, 9999, 10).clip();
     doc.save().roundedRect(PAGE.left, topY, PAGE.width, 9999, 10).fill(C.card).restore();
     y = topY + pad;
     drawContent();
     const endY = y + pad;
-    // borda inferior
-    doc.save()
-      .roundedRect(PAGE.left, topY, PAGE.width, endY - topY, 10)
-      .lineWidth(1)
-      .strokeColor(C.line)
-      .stroke()
-      .restore();
+    doc.save().roundedRect(PAGE.left, topY, PAGE.width, endY - topY, 10).lineWidth(1).strokeColor(C.line).stroke().restore();
     y = endY + 12;
   };
 
-  // --------- HEADER ----------
   const nome = safe(f?.nome, 'Nome não informado');
   const titulo = safe(f?.profissao || f?.area_atuacao, 'Profissão/Área não informada');
 
   h1(nome);
-  doc.fillColor(C.mute).fontSize(H.h2)
-     .text(titulo, PAGE.left, y, { width: PAGE.width });
+  doc.fillColor(C.mute).fontSize(H.h2).text(titulo, PAGE.left, y, { width: PAGE.width });
   y = doc.y + 10;
   hr(12);
 
-  // --------- BLOCO: Contatos & Preferências ----------
   card(() => {
     section('Contato');
-    labelRow([
-      { label: 'E-mail',      value: safe(f?.email) },
-      { label: 'Telefone',    value: safe(f?.telefone) },
-    ]);
-    labelRow([
-      { label: 'Localização', value: (f?.cidade || f?.estado) ? `${safe(f?.cidade)}${f?.estado ? ` - ${safe(f?.estado)}` : ''}` : '' },
-      { label: 'CEP',         value: safe(f?.cep) },
-    ]);
+    labelRow([{ label: 'E-mail', value: safe(f?.email) }, { label: 'Telefone', value: safe(f?.telefone) }]);
+    labelRow([{ label: 'Localização', value: (f?.cidade || f?.estado) ? `${safe(f?.cidade)}${f?.estado ? ` - ${safe(f?.estado)}` : ''}` : '' }, { label: 'CEP', value: safe(f?.cep) }]);
 
     section('Preferências');
-    labelRow([
-      { label: 'Área de atuação', value: safe(f?.area_atuacao) },
-      { label: 'Nível',           value: safe(f?.nivel_experiencia) },
-    ]);
-    labelRow([
-      { label: 'Modalidade',     value: safe(f?.modalidade_trabalho) },
-      { label: 'Disponibilidade',value: safe(f?.disponibilidade) },
-    ]);
+    labelRow([{ label: 'Área de atuação', value: safe(f?.area_atuacao) }, { label: 'Nível', value: safe(f?.nivel_experiencia) }]);
+    labelRow([{ label: 'Modalidade', value: safe(f?.modalidade_trabalho) }, { label: 'Disponibilidade', value: safe(f?.disponibilidade) }]);
     const vHora = money(f?.valor_hora);
     if (vHora) labelRow([{ label: 'Valor/Hora', value: vHora }]);
   });
 
-  // --------- RESUMO ----------
-  if (f?.resumo_profissional) {
-    section('Resumo profissional');
-    paragraph(f.resumo_profissional);
-    hr();
-  }
+  if (f?.resumo_profissional) { section('Resumo profissional'); paragraph(f.resumo_profissional); hr(); }
+  if (f?.objetivos_profissionais) { section('Objetivos'); paragraph(f.objetivos_profissionais); hr(); }
+  if (Array.isArray(f?.skills_array) && f.skills_array.length) { section('Skills técnicas'); chips(f.skills_array); hr(); }
+  if (f?.principais_habilidades) { section('Principais habilidades'); paragraph(f.principais_habilidades); hr(); }
+  if (Array.isArray(f?.idiomas) && f.idiomas.length) { section('Idiomas'); chips(f.idiomas); hr(); }
+  if (f?.experiencia_profissional) { section('Experiência profissional'); paragraph(f.experiencia_profissional); hr(); }
 
-  // --------- OBJETIVOS ----------
-  if (f?.objetivos_profissionais) {
-    section('Objetivos');
-    paragraph(f.objetivos_profissionais);
-    hr();
-  }
-
-  // --------- SKILLS TÉCNICAS (chips) ----------
-  if (arr(f?.skills_array).length) {
-    section('Skills técnicas');
-    chips(f.skills_array);
-    hr();
-  }
-
-  // --------- PRINCIPAIS HABILIDADES ----------
-  if (f?.principais_habilidades) {
-    section('Principais habilidades');
-    paragraph(f.principais_habilidades);
-    hr();
-  }
-
-  // --------- IDIOMAS (chips) ----------
-  if (arr(f?.idiomas).length) {
-    section('Idiomas');
-    chips(f.idiomas);
-    hr();
-  }
-
-  // --------- EXPERIÊNCIA ----------
-  if (f?.experiencia_profissional) {
-    section('Experiência profissional');
-    paragraph(f.experiencia_profissional);
-    hr();
-  }
-
-  // --------- FORMAÇÃO ----------
   if (f?.formacao_academica || f?.instituicao || f?.ano_conclusao) {
     section('Formação acadêmica');
-    const linhas = [
-      safe(f?.formacao_academica),
-      safe(f?.instituicao),
-      f?.ano_conclusao ? `Conclusão: ${f.ano_conclusao}` : ''
-    ].filter(Boolean);
+    const linhas = [safe(f?.formacao_academica), safe(f?.instituicao), f?.ano_conclusao ? `Conclusão: ${f.ano_conclusao}` : ''].filter(Boolean);
     bullet(linhas);
     hr();
   }
 
-  // --------- CERTIFICAÇÕES ----------
-  if (f?.certificacoes) {
-    section('Certificações');
-    paragraph(f.certificacoes);
-    hr();
-  }
+  if (f?.certificacoes) { section('Certificações'); paragraph(f.certificacoes); hr(); }
 
-  // --------- ÁREAS DE INTERESSE ----------
-  if (arr(f?.areas_interesse).length) {
-    section('Áreas de interesse');
-    chips(f.areas_interesse);
-    hr();
-  }
+  if (Array.isArray(f?.areas_interesse) && f.areas_interesse.length) { section('Áreas de interesse'); chips(f.areas_interesse); hr(); }
 
-  // --------- PROJETOS DE PORTFÓLIO (jsonb como array) ----------
   if (Array.isArray(f?.portfolio_projetos) && f.portfolio_projetos.length) {
     section('Projetos de portfólio');
     f.portfolio_projetos.slice(0, 8).forEach((p) => {
@@ -509,16 +385,10 @@ function escreverCurriculoPdf(doc, f) {
     hr();
   }
 
-  // --------- METADADOS ----------
   const meta = [];
   if (f?.status) meta.push(`Status do perfil: ${f.status}`);
-  if (f?.ultimo_login) {
-    try { meta.push(`Último login: ${new Date(f.ultimo_login).toLocaleString('pt-BR')}`); } catch {}
-  }
-  if (meta.length) {
-    section('Informações adicionais');
-    bullet(meta);
-  }
+  if (f?.ultimo_login) { try { meta.push(`Último login: ${new Date(f.ultimo_login).toLocaleString('pt-BR')}`); } catch {} }
+  if (meta.length) { section('Informações adicionais'); bullet(meta); }
 }
 
 // ===== empresa baixa cv de um candidato =====

@@ -4,11 +4,28 @@ const jwt = require('jsonwebtoken');
 const Freelancer = require('../models/Freelancer');
 const Empresa = require('../models/Empresa');
 
-// Middleware para verificar token JWT
+/** Toggle de logs de debug via env */
+const DEBUG_AUTH = String(process.env.DEBUG_AUTH || '').toLowerCase() === 'true';
+
+const log = (...args) => { if (DEBUG_AUTH) console.log(...args); };
+
+/** Regras de “ativo” */
+const isFreelancerAtivo = (f) => !!f && f.status === 'ativo';
+const isEmpresaAtiva = (e) => !!e && ['ativa', 'ativo'].includes(e.status);
+
+/**
+ * Middleware para verificar token JWT
+ * - Lê id/tipo/empresaId/freelancerId do payload
+ * - Carrega o registro correto do banco
+ * - Injeta em:
+ *   - req.tipoUsuario  -> 'freelancer' | 'empresa'
+ *   - req.freelancer   -> instancia do modelo (se tipo freelancer)
+ *   - req.empresa      -> instancia do modelo (se tipo empresa)
+ *   - req.auth         -> metadados do token (id, tipo, empresaId, freelancerId, iat, exp)
+ */
 const verificarToken = async (req, res, next) => {
   try {
     const token = req.header('Authorization')?.replace('Bearer ', '');
-
     if (!token) {
       return res.status(401).json({
         success: false,
@@ -17,62 +34,92 @@ const verificarToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('🔍 [DEBUG] Token decodificado:', { id: decoded.id, tipo: decoded.tipo });
-    
+    // decoded pode conter: { id, tipo, empresaId, freelancerId, iat, exp }
+    log('🔐 [AUTH] Token decodificado:', {
+      id: decoded.id,
+      tipo: decoded.tipo,
+      empresaId: decoded.empresaId,
+      freelancerId: decoded.freelancerId,
+      iat: decoded.iat,
+      exp: decoded.exp,
+    });
+
+    // Guarda metadados crus do token para uso posterior
+    req.auth = {
+      id: decoded.id,
+      tipo: decoded.tipo || null,
+      empresaId: decoded.empresaId || null,
+      freelancerId: decoded.freelancerId || null,
+      iat: decoded.iat,
+      exp: decoded.exp,
+    };
+
     let usuario = null;
-    
-    if (decoded.tipo) {
-      if (decoded.tipo === 'freelancer') {
-        usuario = await Freelancer.findByPk(decoded.id);
-        console.log('🔍 [DEBUG] Freelancer encontrado:', !!usuario, 'Status:', usuario?.status);
-        
-        if (usuario && usuario.status === 'ativo') {
-          req.freelancer = usuario;
-          req.tipoUsuario = 'freelancer';
-        }
-      } else if (decoded.tipo === 'empresa') {
-        usuario = await Empresa.findByPk(decoded.id);
-        console.log('🔍 [DEBUG] Empresa encontrada:', !!usuario, 'Status:', usuario?.status);
-        
-        // ✅ Compat: aceita 'ativa' (ENUM atual do BD) e 'ativo' (caso algum seed novo use)
-        if (usuario && ['ativa', 'ativo'].includes(usuario.status)) {
-          req.empresa = usuario;
-          req.tipoUsuario = 'empresa';
-          console.log('✅ [DEBUG] req.empresa definido:', usuario.nome);
-        } else {
-          console.log('❌ [DEBUG] Empresa não ativa ou não encontrada');
-        }
+
+    if (decoded.tipo === 'freelancer') {
+      const idFreela = decoded.freelancerId || decoded.id;
+      usuario = await Freelancer.findByPk(idFreela);
+      log('🔎 [AUTH] Fetch freelancer:', idFreela, 'encontrado?', !!usuario, 'status:', usuario?.status);
+
+      if (!isFreelancerAtivo(usuario)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido - freelancer inexistente ou inativo',
+        });
       }
+
+      req.freelancer = usuario;
+      req.tipoUsuario = 'freelancer';
+      req.auth.freelancerId = usuario.id;
+
+    } else if (decoded.tipo === 'empresa') {
+      const idEmp = decoded.empresaId || decoded.id;
+      usuario = await Empresa.findByPk(idEmp);
+      log('🔎 [AUTH] Fetch empresa:', idEmp, 'encontrada?', !!usuario, 'status:', usuario?.status);
+
+      if (!isEmpresaAtiva(usuario)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido - empresa inexistente ou inativa',
+        });
+      }
+
+      req.empresa = usuario;
+      req.tipoUsuario = 'empresa';
+      req.auth.empresaId = usuario.id;
+
     } else {
-      // Token antigo sem tipo - assume freelancer
-      usuario = await Freelancer.findByPk(decoded.id);
-      if (usuario && usuario.status === 'ativo') {
-        req.freelancer = usuario;
-        req.tipoUsuario = 'freelancer';
+      // 🔁 Compat: token antigo sem "tipo" → assume freelancer
+      const idFreela = decoded.freelancerId || decoded.id;
+      usuario = await Freelancer.findByPk(idFreela);
+      log('🔁 [AUTH] Compat token antigo (assume freelancer):', idFreela, 'ok?', !!usuario);
+
+      if (!isFreelancerAtivo(usuario)) {
+        return res.status(401).json({
+          success: false,
+          message: 'Token inválido - usuário não encontrado',
+        });
       }
-    }
-    
-    if (!usuario) {
-      console.log('❌ [DEBUG] Usuário não encontrado ou inativo');
-      return res.status(401).json({
-        success: false,
-        message: 'Token inválido - usuário não encontrado',
-      });
+
+      req.freelancer = usuario;
+      req.tipoUsuario = 'freelancer';
+      req.auth.freelancerId = usuario.id;
+      req.auth.tipo = 'freelancer';
     }
 
-    console.log('✅ [DEBUG] Middleware verificarToken OK para:', req.tipoUsuario);
+    log('✅ [AUTH] verificarToken OK para:', req.tipoUsuario);
     next();
 
   } catch (error) {
-    console.error('❌ [DEBUG] Erro na verificação do token:', error);
-    
+    console.error('❌ [AUTH] Erro na verificação do token:', error);
+
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({
         success: false,
         message: 'Token expirado',
       });
     }
-    
+
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({
         success: false,
@@ -87,34 +134,27 @@ const verificarToken = async (req, res, next) => {
   }
 };
 
-// Middleware específico para freelancers
+/** Middleware específico para freelancers */
 const verificarFreelancer = (req, res, next) => {
-  console.log('🔍 [DEBUG verificarFreelancer] Tipo:', req.tipoUsuario, 'Tem freelancer:', !!req.freelancer);
-  
+  log('🔍 [AUTH verificarFreelancer] Tipo:', req.tipoUsuario, '| tem freelancer?', !!req.freelancer);
   if (req.tipoUsuario !== 'freelancer' || !req.freelancer) {
     return res.status(403).json({
       success: false,
       message: 'Acesso restrito a freelancers',
     });
   }
-  
-  console.log('✅ [DEBUG] Acesso liberado para freelancer:', req.freelancer.nome);
   next();
 };
 
-// Middleware específico para empresas  
+/** Middleware específico para empresas */
 const verificarEmpresa = (req, res, next) => {
-  console.log('🔍 [DEBUG verificarEmpresa] Tipo:', req.tipoUsuario, 'Tem empresa:', !!req.empresa);
-  
+  log('🔍 [AUTH verificarEmpresa] Tipo:', req.tipoUsuario, '| tem empresa?', !!req.empresa);
   if (req.tipoUsuario !== 'empresa' || !req.empresa) {
-    console.log('❌ [DEBUG] Acesso negado - não é empresa ou req.empresa undefined');
     return res.status(403).json({
       success: false,
       message: 'Acesso restrito a empresas',
     });
   }
-  
-  console.log('✅ [DEBUG] Acesso liberado para empresa:', req.empresa.nome);
   next();
 };
 

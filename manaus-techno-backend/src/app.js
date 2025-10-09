@@ -13,6 +13,8 @@ const freelancerRoutes = require('./routes/freelancerRoutes');
 const empresaRoutes = require('./routes/empresaRoutes');
 const vagasRoutes = require('./routes/vagasRoutes');
 const candidaturasRoutes = require('./routes/candidaturasRoutes');
+const iaRoutes = require('./routes/iaRoutes');
+const matchRoutes = require('./routes/matchRoutes');
 
 // (Opcional) importa modelos para garantir que o Sequelize os registre
 require('./models/Freelancer');
@@ -49,11 +51,13 @@ app.get('/', (req, res) => {
 });
 
 /* ===== Rotas ===== */
+app.use('/api', matchRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/freelancers', freelancerRoutes);
 app.use('/api/empresas', empresaRoutes);
 app.use('/api/vagas', vagasRoutes);
 app.use('/api/candidaturas', candidaturasRoutes);
+app.use('/api/ia', iaRoutes);
 
 /* ===== 404 ===== */
 app.use((req, res) => {

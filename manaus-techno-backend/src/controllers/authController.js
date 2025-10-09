@@ -1,15 +1,20 @@
-//authController.js
+// authController.js
 
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
 const Empresa = require('../models/Empresa');
 
-// Gerar token JWT (agora suporta tipo de usuário)
-const gerarToken = (userId, tipo = null) => {
-  const payload = tipo ? { id: userId, tipo } : { id: userId };
+// Gerar token JWT (suporta tipo de usuário + payload extra)
+const gerarToken = (userId, tipo = null, extraPayload = {}) => {
+  const payload = {
+    id: userId,
+    ...(tipo ? { tipo } : {}),
+    ...extraPayload, // ex.: { empresaId } ou { freelancerId }
+  };
+
   return jwt.sign(payload, process.env.JWT_SECRET, {
-    expiresIn: process.env.JWT_EXPIRES_IN,
+    expiresIn: process.env.JWT_EXPIRES_IN || '8h',
   });
 };
 
@@ -184,8 +189,8 @@ const registrarFreelancer = async (req, res) => {
       status: 'ativo',
     });
 
-    // Gerar token
-    const token = gerarToken(novoFreelancer.id, 'freelancer');
+    // Gerar token (inclui freelancerId no payload)
+    const token = gerarToken(novoFreelancer.id, 'freelancer', { freelancerId: novoFreelancer.id });
 
     res.status(201).json({
       success: true,
@@ -194,6 +199,7 @@ const registrarFreelancer = async (req, res) => {
         freelancer: novoFreelancer,
         token,
         tipo: 'freelancer',
+        freelancerId: novoFreelancer.id, // conveniência no front
       },
     });
 
@@ -278,8 +284,8 @@ const registrarEmpresa = async (req, res) => {
       verificada: false,
     });
 
-    // Gerar token
-    const token = gerarToken(novaEmpresa.id, 'empresa');
+    // Gerar token (inclui empresaId no payload)
+    const token = gerarToken(novaEmpresa.id, 'empresa', { empresaId: novaEmpresa.id });
 
     res.status(201).json({
       success: true,
@@ -287,7 +293,8 @@ const registrarEmpresa = async (req, res) => {
       data: {
         empresa: novaEmpresa,
         token,
-        tipo: 'empresa'
+        tipo: 'empresa',
+        empresaId: novaEmpresa.id, // conveniência no front
       },
     });
 
@@ -365,8 +372,12 @@ const login = async (req, res) => {
     // Atualizar último login
     await usuario.atualizarUltimoLogin();
 
-    // Gerar token com tipo do usuário
-    const token = gerarToken(usuario.id, tipo);
+    // Gerar token com payload específico por tipo
+    const extra = (tipo === 'empresa')
+      ? { empresaId: usuario.id }
+      : { freelancerId: usuario.id };
+
+    const token = gerarToken(usuario.id, tipo, extra);
 
     // Remover senha da resposta
     const usuarioSemSenha = usuario.toJSON();
@@ -378,6 +389,7 @@ const login = async (req, res) => {
         [tipo]: usuarioSemSenha,
         token,
         tipo,
+        ...(tipo === 'empresa' ? { empresaId: usuario.id } : { freelancerId: usuario.id })
       },
     });
 
@@ -452,8 +464,12 @@ const refreshToken = async (req, res) => {
       });
     }
 
-    // Gerar novo token
-    const novoToken = gerarToken(usuario.id, tipoUsuario);
+    // Gerar novo token com o mesmo payload extra
+    const extra = (tipoUsuario === 'empresa')
+      ? { empresaId: usuario.id }
+      : { freelancerId: usuario.id };
+
+    const novoToken = gerarToken(usuario.id, tipoUsuario, extra);
 
     res.json({
       success: true,
@@ -461,6 +477,7 @@ const refreshToken = async (req, res) => {
       data: {
         token: novoToken,
         tipo: tipoUsuario,
+        ...(tipoUsuario === 'empresa' ? { empresaId: usuario.id } : { freelancerId: usuario.id })
       },
     });
 

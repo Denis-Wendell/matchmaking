@@ -1,6 +1,8 @@
-// empresaController.js
-
+// src/controllers/empresaController.js
+const { Op } = require('sequelize');
 const Empresa = require('../models/Empresa');
+const Vaga = require('../models/Vaga');
+const Freelancer = require('../models/Freelancer');
 
 /* ========= COMPAT LAYER (entrada) =========
    Mapeia valores que o front pode enviar para
@@ -51,6 +53,62 @@ const toArray = (val) => {
   }
   return [];
 };
+
+/* ========= Helpers de Match ========= */
+const toArr = (v) => Array.isArray(v) ? v.filter(Boolean) : (v ? [v] : []);
+const norm = (s) => (s || '').toString().trim().toLowerCase();
+const uniq = (arr) => Array.from(new Set(arr.map((x) => norm(x)))).filter(Boolean);
+
+/** Constrói um vetor “skills” limpo do freelancer */
+function getFreelaSkills(f) {
+  const base = [
+    ...(toArr(f.skills_array)),
+    ...(norm(f.principais_habilidades || '').split(/[,\|;\/]/g)),
+  ];
+  return uniq(base);
+}
+
+/** Constrói um vetor “requisitos/tecnologias” da vaga */
+function getVagaReqs(v) {
+  const base = [
+    ...(toArr(v.requisitos_tecnicos)),
+    ...(toArr(v.tecnologias_usadas)),
+    ...(norm(v.requisitos || '').split(/[,\|;\/]/g)),
+  ];
+  return uniq(base);
+}
+
+/** Score simples: interseção de skills x requisitos, + match de área e nível */
+function scoreFreelaParaVaga(f, v) {
+  const skillsF = getFreelaSkills(f);
+  const reqsV  = getVagaReqs(v);
+
+  // Interseção
+  let inter = 0;
+  if (skillsF.length && reqsV.length) {
+    const setV = new Set(reqsV);
+    for (const s of skillsF) if (setV.has(norm(s))) inter++;
+  }
+  const denom = Math.max(reqsV.length, 1);
+  const skillScore = inter / denom; // 0..1
+
+  // Área e nível (quando existirem em ambos)
+  const areaMatch = norm(f.area_atuacao) && norm(v.area)
+    ? (norm(f.area_atuacao) === norm(v.area) ? 1 : 0)
+    : 0;
+
+  const nivelMatch = norm(f.nivel_experiencia) && norm(v.nivel)
+    ? (norm(f.nivel_experiencia) === norm(v.nivel) ? 1 : 0)
+    : 0;
+
+  // Pesos (ajuste livre)
+  const wSkills = 0.6;
+  const wArea   = 0.2;
+  const wNivel  = 0.2;
+
+  const score = (skillScore * wSkills) + (areaMatch * wArea) + (nivelMatch * wNivel);
+  return Math.round(score * 100); // 0..100
+}
 
 // Listar todas as empresas
 const listarEmpresas = async (req, res) => {
@@ -255,6 +313,103 @@ const buscarVerificadas = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/empresas/:empresaId/matches
+ * Requer: verificarToken + verificarEmpresa
+ * Somente a própria empresa pode consultar
+ * Query:
+ *   - pagina, limite (paginaçao de freelancers)
+ *   - status (status de freelancer, default 'ativo')
+ */
+const listarMatchesEmpresa = async (req, res) => {
+  try {
+    const empresaIdParam = req.params.empresaId;
+    const empresaAuthId  = req.empresa?.id;
+
+    if (!empresaAuthId || empresaAuthId !== empresaIdParam) {
+      return res.status(403).json({
+        success: false,
+        message: 'Acesso negado: empresa inválida',
+      });
+    }
+
+    const pagina = Math.max(parseInt(req.query.pagina || '1', 10), 1);
+    const limite = Math.min(Math.max(parseInt(req.query.limite || '12', 10), 1), 100);
+    const offset = (pagina - 1) * limite;
+
+    const statusFreela = (req.query.status || 'ativo').toLowerCase().trim();
+
+    // Vagas ativas da empresa
+    const vagas = await Vaga.findAll({
+      where: {
+        [Op.and]: [
+          { empresa_id: empresaIdParam },
+          // aceita 'ativa' ou 'ativo' ou 'publicada'
+          { status: { [Op.in]: ['ativa', 'ativo', 'publicada'] } },
+        ],
+      },
+      order: [['created_at', 'DESC']],
+    });
+
+    if (!vagas || vagas.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Sem vagas ativas para calcular matches',
+        data: {
+          freelancers: [],
+          total: 0,
+          totalPaginas: 1,
+          pagina,
+          limite,
+        },
+      });
+    }
+
+    const { rows, count } = await Freelancer.findAndCountAll({
+      where: { status: statusFreela },
+      limit: limite,
+      offset,
+      order: [['created_at', 'DESC']],
+      attributes: { exclude: ['senha_hash'] },
+    });
+
+    const enriched = rows.map((f) => {
+      let best = { vagaId: null, titulo: null, score: 0 };
+      for (const v of vagas) {
+        const s = scoreFreelaParaVaga(f, v);
+        if (s > best.score) {
+          best = { vagaId: v.id, titulo: v.titulo || v.nome || 'Vaga', score: s };
+        }
+      }
+      return {
+        ...f.toJSON(),
+        match_percent: best.score,
+        match_vaga: { id: best.vagaId, titulo: best.titulo },
+      };
+    });
+
+    enriched.sort((a, b) => (b.match_percent || 0) - (a.match_percent || 0));
+
+    return res.json({
+      success: true,
+      message: 'Matches calculados com sucesso',
+      data: {
+        freelancers: enriched,
+        total: count,
+        totalPaginas: Math.max(Math.ceil(count / limite), 1),
+        pagina,
+        limite,
+      },
+    });
+  } catch (err) {
+    console.error('Erro ao calcular matches da empresa:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao calcular matches',
+    });
+  }
+};
+
 module.exports = {
   listarEmpresas,
   buscarEmpresaPorId,
@@ -262,4 +417,5 @@ module.exports = {
   meuPerfil,
   buscarPorSetor,
   buscarVerificadas,
+  listarMatchesEmpresa, // << novo export
 };

@@ -3,7 +3,12 @@
   "version": "1.0.0",
   "description": "Backend para sistema de vagas Manaus Techno",
   "main": "src/app.js",
-  "keywords": ["nodejs", "express", "postgresql", "api"],
+  "keywords": [
+    "nodejs",
+    "express",
+    "postgresql",
+    "api"
+  ],
   "author": "Seu Nome",
   "license": "ISC",
   "dependencies": {
@@ -14,6 +19,7 @@
     "helmet": "^7.0.0",
     "jsonwebtoken": "^9.0.2",
     "morgan": "^1.10.0",
+    "openai": "^6.2.0",
     "pdfkit": "^0.17.2",
     "pg": "^8.11.3",
     "sequelize": "^6.32.1"
