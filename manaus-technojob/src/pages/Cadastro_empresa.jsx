@@ -1,11 +1,14 @@
 // pages/Cadastro_empresa.jsx
+import { useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 // Importando os componentes que você criou
 import FormField from '../components/FormField';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { Navigate } from 'react-router-dom';
 
 function CadastroEmpresa() {
+  const Navigate = useNavigate();
   // ===== ESTADOS DO FORMULÁRIO =====
   const [formData, setFormData] = useState({
     // --- Informações Básicas ---
@@ -515,10 +518,7 @@ function CadastroEmpresa() {
               variant="secondary"
               type="button"
               className="w-full sm:w-auto px-12 py-3"
-              onClick={() => {
-                console.log('Redirecionando para login...');
-                // Implementar redirecionamento
-              }}
+              onClick={() => Navigate('/login')} // Redireciona para a página de login
             >
               Já tenho conta
             </Button>
