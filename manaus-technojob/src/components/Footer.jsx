@@ -1,11 +1,16 @@
+import { useNavigate } from 'react-router-dom';
+import { HashLink } from 'react-router-hash-link';
+
 function Footer() {
+  const navigate = useNavigate();
+
   return (
     <footer className="bg-gray-900 text-gray-300 py-12">
       {/* Container com largura MUITO limitada e centralizado */}
       <div className="w-full max-w-4xl mx-auto px-8">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-16">
           {/* Logo e Descrição */}
-          <div className="md:col-span-1">
+          <div className="md:col-span-3">
             <h3 className="text-2xl font-bold text-blue-400 mb-4">
               Manaus TechnoJob
             </h3>
@@ -13,81 +18,10 @@ function Footer() {
               Conectando talentos às oportunidades 
               através de Inteligência Artificial
             </p>
+                        
           </div>
 
-          {/* Para Freelancers */}
-          <div className="md:col-span-1">
-            <h4 className="text-white font-semibold mb-4">
-              Para Freelancers
-            </h4>
-            <ul className="space-y-3">
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('freelancer')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Cadastre seu Currículo
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('vagas')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Encontrar Vagas
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('perfil')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Meu Perfil
-                </button>
-              </li>
-            </ul>
-          </div>
-
-          {/* Para Empresas */}
-          <div className="md:col-span-1">
-            <h4 className="text-white font-semibold mb-4">
-              Para Empresas
-            </h4>
-            <ul className="space-y-3">
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('empresa')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Cadastre sua Empresa
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('cadastro-vaga')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Cadastrar Vaga
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('talentos')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Encontrar Talentos
-                </button>
-              </li>
-              <li>
-                <button 
-                  onClick={() => setCurrentPage('perfil-empresa')}
-                  className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
-                >
-                  Perfil da Empresa
-                </button>
-              </li>
-            </ul>
-          </div>
+          
 
           {/* Suporte */}
           <div className="md:col-span-1">
@@ -96,20 +30,22 @@ function Footer() {
             </h4>
             <ul className="space-y-3">
               <li>
-                <button 
-                  onClick={() => setCurrentPage('about')}
+                <HashLink
+                  to="/About#"
+                  smooth
                   className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
                 >
                   Sobre Nós
-                </button>
+                </HashLink>
               </li>
               <li>
-                <button 
-                  onClick={() => setCurrentPage('contato')}
+                <HashLink
+                  to="/About#contato"
+                  smooth
                   className="text-gray-400 hover:text-blue-400 transition-colors text-left block text-sm"
                 >
                   Contato
-                </button>
+                </HashLink>
               </li>
             </ul>
           </div>

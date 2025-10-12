@@ -5,7 +5,7 @@ import Objectives from '../components/about/Objectives';
 import Technology from '../components/about/Technology';
 import Team from '../components/about/Team';
 import AboutCta from '../components/about/AboutCta';
-
+import Contact from '../components/about/Contact';
 
 const About = () => {
   return (
@@ -16,6 +16,8 @@ const About = () => {
       <Technology />
       <Team />
       <AboutCta />
+      <Contact id='contato' />
+
     </main>
   );
 };
