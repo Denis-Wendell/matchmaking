@@ -3,9 +3,36 @@ const { Op, fn, col, where } = require('sequelize');
 const Vaga = require('../models/Vaga');
 const Freelancer = require('../models/Freelancer');
 
-/* ===== Normalizadores ===== */
-const deburr = (s) =>
-  (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+/* ===== Config IA e performance ===== */
+let openai = null;
+
+/** Toggle IA */
+const AI_DEFAULT_ON = true;    // embeddings ligados por padrão
+const LLM_DEFAULT_ON = false;  // LLM (re-rank) desligado por padrão p/ reduzir latência
+
+/** Limites de rerank */
+const EMBED_TOP_K = 40;        // só as Top K (por score_base) recebem embeddings
+const LLM_TOP_N   = 8;         // só as Top N recebem LLM (se ligado)
+
+/** Pesos do score final */
+const WEIGHT_EMBED = 0.45;
+const WEIGHT_LLM   = 0.25;     // como LLM vem desligado, esse peso só entra se LLM for ligado
+// peso_base = 1 - (embed + llm)
+
+/** Concurrency p/ OpenAI */
+const EMBEDDING_CONCURRENCY = 3;
+
+try {
+  const OpenAI = require('openai');
+  if (process.env.OPENAI_API_KEY) {
+    openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+} catch (_) {
+  // sem openai
+}
+
+/* ===== Utils ===== */
+const deburr = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const normalize = (s) => deburr(String(s || '').toLowerCase().trim());
 
 const normalizarModalidade = (v) => {
@@ -46,14 +73,12 @@ const uniqNormalized = (list) =>
 const tokenizarTexto = (txt) => {
   const base = normalize(txt);
   if (!base) return [];
-  return Array.from(
-    new Set(
-      base
-        .split(/[^a-z0-9#.]+/g)
-        .map((t) => t.replace(/^#+/, ''))
-        .filter((t) => t.length >= 2)
-    )
-  );
+  return Array.from(new Set(
+    base
+      .split(/[^a-z0-9#.]+/g)
+      .map((t) => t.replace(/^#+/, ''))
+      .filter((t) => t.length >= 2)
+  ));
 };
 
 const intersectSize = (A = [], B = []) => {
@@ -69,11 +94,17 @@ const buildFreelaFeatures = (f) => {
   const principais = toArr(f.principais_habilidades);
   const resumoTokens = tokenizarTexto(f.resumo_profissional);
   const expTokens = tokenizarTexto(f.experiencia_profissional);
+  const idiomas = uniqNormalized(toArr(f.idiomas));
   return uniqNormalized([
     ...skillsArray,
     ...principais,
     ...resumoTokens,
     ...expTokens,
+    ...idiomas,
+    f.profissao,
+    f.area_atuacao,
+    f.nivel_experiencia,
+    f.modalidade_trabalho,
   ]);
 };
 
@@ -85,6 +116,7 @@ const buildVagaFeatures = (v) => {
   const reqDes = toArr(v.requisitos_desejados);
   const descTokens = tokenizarTexto(v.descricao_geral);
   const palavrasChave = toArr(v.palavras_chave);
+  const idiomas = uniqNormalized(toArr(v.idiomas_necessarios));
   return uniqNormalized([
     ...obr,
     ...des,
@@ -93,11 +125,53 @@ const buildVagaFeatures = (v) => {
     ...reqDes,
     ...descTokens,
     ...palavrasChave,
+    ...idiomas,
+    v.titulo,
+    v.area_atuacao,
+    v.nivel_experiencia,
+    v.modalidade_trabalho,
+    v.tipo_contrato,
   ]);
 };
 
-/* ===== Scoring ===== */
-const scoreFreelaVaga = (f, v, cacheVagaFeat = new Map(), cacheFreelaFeat = new Map()) => {
+/* ===== Consolidação de texto (para IA) ===== */
+const textoDoFreelancer = (f) => {
+  const parts = [
+    `Nome: ${f.nome || ''}`,
+    `Profissão: ${f.profissao || ''}`,
+    `Área: ${f.area_atuacao || ''}`,
+    `Nível: ${normalizarNivel(f.nivel_experiencia) || f.nivel_experiencia || ''}`,
+    `Modalidade: ${normalizarModalidade(f.modalidade_trabalho) || f.modalidade_trabalho || ''}`,
+    `Skills: ${toArr(f.skills_array).join(', ') || f.principais_habilidades || ''}`,
+    `Idiomas: ${toArr(f.idiomas).join(', ')}`,
+    `Resumo: ${f.resumo_profissional || ''}`,
+    `Experiência: ${f.experiencia_profissional || ''}`,
+    `Certificações: ${f.certificacoes || ''}`,
+    `Objetivos: ${f.objetivos_profissionais || ''}`,
+  ];
+  // limitar o tamanho para embedding
+  return parts.join('\n').slice(0, 1500);
+};
+
+const textoDaVaga = (v) => {
+  const parts = [
+    `Título: ${v.titulo || ''}`,
+    `Área: ${v.area_atuacao || ''}`,
+    `Nível: ${normalizarNivel(v.nivel_experiencia) || v.nivel_experiencia || ''}`,
+    `Modalidade: ${normalizarModalidade(v.modalidade_trabalho) || v.modalidade_trabalho || ''}`,
+    `Tipo de contrato: ${v.tipo_contrato || ''}`,
+    `Skills obrigatórias: ${toArr(v.skills_obrigatorias).join(', ')}`,
+    `Skills desejáveis: ${toArr(v.skills_desejaveis).join(', ')}`,
+    `Requisitos: ${toArr(v.requisitos_obrigatorios).concat(toArr(v.requisitos_desejados)).join(', ')}`,
+    `Idiomas: ${toArr(v.idiomas_necessarios).join(', ')}`,
+    `Descrição: ${v.descricao_geral || ''}`,
+    `Palavras-chave: ${toArr(v.palavras_chave).join(', ')}`,
+  ];
+  return parts.join('\n').slice(0, 1500);
+};
+
+/* ===== Scoring base (regras) ===== */
+const scoreBaseFreelaVaga = (f, v, cacheVagaFeat = new Map(), cacheFreelaFeat = new Map()) => {
   let score = 0;
 
   // área — 20
@@ -144,71 +218,148 @@ const scoreFreelaVaga = (f, v, cacheVagaFeat = new Map(), cacheFreelaFeat = new 
   // clamp
   score = Math.max(0, Math.min(100, score));
 
-  // pequeno “empurrão” se tem algum alinhamento textual mas vFeat é muito grande
+  // pequeno “empurrão” se tem algum alinhamento textual
   if (score === 0 && inter > 0) score = 5;
 
   return score;
 };
 
-/* ===== Controller =====
-   GET /api/empresas/:empresaId/matches?pagina=1&limite=12&area=...&modalidade=...&nivel=...&busca=...
-*/
+/* ===== IA: Embeddings + Cosine ===== */
+const cosine = (a = [], b = []) => {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < Math.min(a.length, b.length); i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return (na && nb) ? (dot / (Math.sqrt(na) * Math.sqrt(nb))) : 0;
+};
+
+const getEmbedding = async (text) => {
+  if (!openai) return null;
+  const clean = (text || '').slice(0, 2000); // segurança
+  const resp = await openai.embeddings.create({
+    model: 'text-embedding-3-large',
+    input: clean
+  });
+  return resp?.data?.[0]?.embedding || null;
+};
+
+/* ===== Cache simples de embeddings (memória) ===== */
+const embedCache = new Map(); // chave: `${tipo}:${id}|${updatedAt}` -> vetor
+const getCachedEmbedding = async (key, textProducer) => {
+  if (embedCache.has(key)) return embedCache.get(key);
+  const txt = await textProducer();
+  const emb = await getEmbedding(txt);
+  embedCache.set(key, emb);
+  return emb;
+};
+
+/* ===== Execução com concorrência limitada ===== */
+async function mapWithConcurrency(items, worker, concurrency = 3) {
+  const results = new Array(items.length);
+  let i = 0;
+  async function next() {
+    const idx = i++;
+    if (idx >= items.length) return;
+    try {
+      results[idx] = await worker(items[idx], idx);
+    } catch (e) {
+      results[idx] = null;
+    }
+    return next();
+  }
+  const starters = Array(Math.min(concurrency, items.length)).fill(0).map(next);
+  await Promise.all(starters);
+  return results;
+}
+
+/* ===== IA: Rerank com LLM (opcional) ===== */
+const llmRerankScores = async (freelaTxt, vagasCompacts) => {
+  if (!openai || vagasCompacts.length === 0) return [];
+  const itens = vagasCompacts.map((v, i) => (
+    `#${i+1}\nID:${v.id}\nTítulo:${v.titulo}\nNível:${v.nivel}\nModalidade:${v.modalidade}\nSkills:${v.skills}\nReq:${v.req}\nDesc:${v.desc}`
+  )).join('\n\n');
+
+  const prompt = `
+Você é um avaliador de compatibilidade entre PERFIL e VAGAS. 
+Retorne uma nota de 0 a 100 para cada vaga considerando adequação semântica (sinônimos, contexto, senioridade, responsabilidades, stack).
+
+PERFIL:
+${freelaTxt}
+
+VAGAS:
+${itens}
+
+Responda em JSON, uma lista de objetos { "id": "<ID>", "score": <0..100> } na MESMA ordem de apresentação das vagas (use o ID fornecido).
+`.trim();
+
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o-mini',
+    temperature: 0.2,
+    messages: [{ role: 'user', content: prompt }]
+  });
+
+  const text = completion.choices?.[0]?.message?.content?.trim() || '[]';
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
+/* ===== Status ativos para vaga ===== */
+const vagaEstaAtiva = (v, enumVals = []) => {
+  const desejados = ['aberta', 'ativa', 'ativo', 'publicada', 'publica', 'em_andamento', 'em andamento'];
+  const setAtivos = enumVals.length
+    ? new Set(enumVals.map(normalize).filter((x) => desejados.includes(x)))
+    : new Set(['aberta', 'ativa', 'ativo', 'publicada']);
+  return setAtivos.has(normalize(v.status));
+};
+
+/* =======================================================================
+   A) EMPRESA → lista freelancers com melhor match
+   GET /api/empresas/:empresaId/matches?pagina=1&limite=12&ai=on|off&llm=on|off
+   ======================================================================= */
 exports.listarFreelancersComMatchDaEmpresa = async (req, res) => {
   try {
     const { empresaId } = req.params;
 
-    // paginação (será aplicada DEPOIS do sort)
     const pagina = Math.max(parseInt(req.query.pagina || '1', 10), 1);
     const limite = Math.min(Math.max(parseInt(req.query.limite || '12', 10), 1), 100);
 
     const { area, modalidade, nivel, busca } = req.query;
+    const useEmbed = String(req.query.ai || (AI_DEFAULT_ON ? 'on' : 'off')).toLowerCase() === 'on';
+    const useLLM   = String(req.query.llm || (LLM_DEFAULT_ON ? 'on' : 'off')).toLowerCase() === 'on';
 
-    // 1) Vagas da empresa (filtra status “ativo/aberta/publicada” em JS para não bater no ENUM)
+    // Vagas da empresa
     const vagasAll = await Vaga.findAll({
       where: { empresa_id: empresaId },
       attributes: [
-        'id', 'titulo', 'area_atuacao', 'nivel_experiencia', 'modalidade_trabalho',
-        'skills_obrigatorias', 'skills_desejaveis', 'habilidades_tecnicas',
-        'requisitos_obrigatorios', 'requisitos_desejados', 'descricao_geral',
-        'palavras_chave', 'idiomas_necessarios', 'status'
+        'id','titulo','area_atuacao','nivel_experiencia','modalidade_trabalho','tipo_contrato',
+        'skills_obrigatorias','skills_desejaveis','habilidades_tecnicas',
+        'requisitos_obrigatorios','requisitos_desejados','descricao_geral',
+        'palavras_chave','idiomas_necessarios','status','created_at','updated_at'
       ],
-      order: [['created_at', 'DESC']],
+      order: [['created_at', 'DESC']]
     });
 
     const enumVals = Vaga.rawAttributes?.status?.values || [];
-    const desejados = ['aberta', 'ativa', 'ativo', 'publicada', 'publica', 'em_andamento', 'em andamento'];
-    const setAtivos = enumVals.length
-      ? new Set(enumVals.map(normalize).filter((v) => desejados.includes(v)))
-      : new Set(['aberta', 'ativa', 'ativo', 'publicada']);
-
-    const vagas = vagasAll.filter((v) => setAtivos.has(normalize(v.status)));
-
+    const vagas = vagasAll.filter((v) => vagaEstaAtiva(v, enumVals));
     if (vagas.length === 0) {
       return res.json({
         success: true,
         message: 'Sem vagas ativas para calcular match',
-        data: {
-          freelancers: [],
-          total: 0,
-          totalPaginas: 1,
-          pagina,
-          limite,
-        },
+        data: { freelancers: [], total: 0, totalPaginas: 1, pagina, limite }
       });
     }
 
-    // 2) Monta WHERE de freelancers com filtros do front (sem paginação aqui!)
+    // Filtros de freelancer
     const whereBase = { status: 'ativo' };
-
-    if (area && area !== 'todas') {
-      whereBase.area_atuacao = { [Op.iLike]: `%${area}%` };
-    }
-
-    const mod = normalizarModalidade(modalidade);
-    if (mod) whereBase.modalidade_trabalho = mod;
-
-    const niv = normalizarNivel(nivel);
-    if (niv) whereBase.nivel_experiencia = niv;
+    if (area && area !== 'todas') whereBase.area_atuacao = { [Op.iLike]: `%${area}%` };
+    const mod = normalizarModalidade(modalidade); if (mod) whereBase.modalidade_trabalho = mod;
+    const niv = normalizarNivel(nivel); if (niv) whereBase.nivel_experiencia = niv;
 
     const andBusca = [];
     if (busca && String(busca).trim()) {
@@ -226,54 +377,139 @@ exports.listarFreelancersComMatchDaEmpresa = async (req, res) => {
           { experiencia_profissional: { [Op.iLike]: term } },
           { certificacoes: { [Op.iLike]: term } },
           { principais_habilidades: { [Op.iLike]: term } },
-          // arrays → concatena para busca textual
           where(fn('array_to_string', col('skills_array'), ','), { [Op.iLike]: term }),
           where(fn('array_to_string', col('idiomas'), ','), { [Op.iLike]: term }),
         ],
       });
     }
-
     const whereFinal = andBusca.length ? { [Op.and]: [whereBase, ...andBusca] } : whereBase;
 
-    // 3) Busca TODOS os freelancers (sem limit/offset) para calcular e ordenar pelo match
     const freelas = await Freelancer.findAll({
       where: whereFinal,
-      attributes: { exclude: ['senha_hash'] },
-      // sem order, sem limit/offset — a ordenação será por match
+      attributes: { exclude: ['senha_hash'] }
     });
 
-    // 4) Calcula melhor match por vaga para cada freelancer
+    // 1) Base score (rápido)
     const cacheVagaFeat = new Map();
     const cacheFreelaFeat = new Map();
 
-    const resultados = freelas.map((f) => {
-      let best = { pct: 0, vagaId: null, vagaTitulo: null };
+    let baseRank = freelas.map((f) => {
+      let best = { base: 0, vaga: null };
       for (const v of vagas) {
-        const pct = scoreFreelaVaga(f, v, cacheVagaFeat, cacheFreelaFeat);
-        if (pct > best.pct) best = { pct, vagaId: v.id, vagaTitulo: v.titulo };
+        const base = scoreBaseFreelaVaga(f, v, cacheVagaFeat, cacheFreelaFeat);
+        if (base > best.base) best = { base, vaga: v };
       }
-      const json = f.toJSON();
       return {
-        ...json,
-        match_pct: best.pct,
-        melhor_vaga_id: best.vagaId,
-        melhor_vaga_titulo: best.vagaTitulo,
+        freela: f,
+        _score_base: best.base,
+        _melhor_vaga: best.vaga,
       };
     });
 
-    // 5) Ordena por match desc
-    resultados.sort((a, b) => (b.match_pct || 0) - (a.match_pct || 0));
+    // Ordena por base
+    baseRank.sort((a, b) => (b._score_base || 0) - (a._score_base || 0));
 
-    // 6) Pagina agora
-    const total = resultados.length;
+    // 2) Embeddings no Top K (se ligado)
+    if (useEmbed && openai && baseRank.length) {
+      const topK = baseRank.slice(0, EMBED_TOP_K);
+
+      const freelaEmbeds = await mapWithConcurrency(topK, async (row) => {
+        const f = row.freela;
+        const key = `fre:${f.id}|${f.updated_at || ''}`;
+        return getCachedEmbedding(key, async () => textoDoFreelancer(f));
+      }, EMBEDDING_CONCURRENCY);
+
+      const vagaEmbeds = await mapWithConcurrency(topK, async (row) => {
+        const v = row._melhor_vaga;
+        if (!v) return null;
+        const key = `vaga:${v.id}|${v.updated_at || ''}`;
+        return getCachedEmbedding(key, async () => textoDaVaga(v));
+      }, EMBEDDING_CONCURRENCY);
+
+      topK.forEach((row, idx) => {
+        const fEmb = freelaEmbeds[idx];
+        const vEmb = vagaEmbeds[idx];
+        let sem = 0;
+        if (fEmb && vEmb) {
+          const cos = cosine(fEmb, vEmb);
+          sem = Math.round(((cos + 1) / 2) * 100);
+        }
+        row._score_embed = sem;
+      });
+
+      // preenche os demais com 0 (sem embed)
+      for (let i = EMBED_TOP_K; i < baseRank.length; i++) baseRank[i]._score_embed = 0;
+    } else {
+      for (const r of baseRank) r._score_embed = 0;
+    }
+
+    // 3) Combinar Base + Embedding
+    const wBase = Math.max(0, 1 - WEIGHT_EMBED - WEIGHT_LLM);
+    for (const r of baseRank) {
+      r._pre_llm = Math.round(wBase * (r._score_base || 0) + WEIGHT_EMBED * (r._score_embed || 0));
+    }
+    baseRank.sort((a, b) => (b._pre_llm || 0) - (a._pre_llm || 0));
+
+    // 4) LLM (opcional) no Top N
+    if (useLLM && openai && baseRank.length) {
+      const topN = baseRank.slice(0, LLM_TOP_N);
+      const paresTxt = topN.map((x, idx) => (
+        `#${idx+1}\nID:${x.freela.id}\n\nPERFIL\n${textoDoFreelancer(x.freela)}\n\nVAGA\n${x._melhor_vaga ? textoDaVaga(x._melhor_vaga) : ''}`
+      )).join('\n\n');
+
+      const prompt = `
+Você é um avaliador. Para cada par (PERFIL,VAGA) abaixo, dê uma nota de 0..100 de adequação semântica.
+Responda JSON como [{"id":"<ID>","score":<0..100>}, ...] na mesma ordem.
+
+${paresTxt}
+      `.trim();
+
+      try {
+        const completion = await openai.chat.completions.create({
+          model: 'gpt-4o-mini',
+          temperature: 0.2,
+          messages: [{ role: 'user', content: prompt }]
+        });
+        const text = completion.choices?.[0]?.message?.content?.trim() || '[]';
+        const parsed = JSON.parse(text);
+        const map = new Map(parsed.map(p => [String(p.id), Number(p.score) || 0]));
+        for (const r of topN) r._score_llm = Math.max(0, Math.min(100, map.get(String(r.freela.id)) || 0));
+      } catch {
+        for (const r of topN) r._score_llm = 0;
+      }
+      for (let i = LLM_TOP_N; i < baseRank.length; i++) baseRank[i]._score_llm = 0;
+    } else {
+      for (const r of baseRank) r._score_llm = 0;
+    }
+
+    // 5) Score final + sort
+    for (const r of baseRank) {
+      r.match_pct = Math.round(
+        wBase * (r._score_base || 0) +
+        WEIGHT_EMBED * (r._score_embed || 0) +
+        WEIGHT_LLM   * (r._score_llm || 0)
+      );
+    }
+    baseRank.sort((a, b) => (b.match_pct || 0) - (a.match_pct || 0));
+
+    // 6) Paginação (agora funciona bonitinho)
+    const total = baseRank.length;
     const totalPaginas = Math.max(Math.ceil(total / limite), 1);
     const inicio = (pagina - 1) * limite;
     const fim = inicio + limite;
-    const pageItems = resultados.slice(inicio, fim);
+    const pageItems = baseRank.slice(inicio, fim).map((row) => {
+      const f = row.freela.toJSON();
+      return {
+        ...f,
+        match_pct: row.match_pct,
+        melhor_vaga_id: row._melhor_vaga?.id || null,
+        melhor_vaga_titulo: row._melhor_vaga?.titulo || null,
+      };
+    });
 
     return res.json({
       success: true,
-      message: 'Freelancers com melhor match por vaga da empresa',
+      message: 'Freelancers com melhor match por vaga da empresa (rápido + IA opcional)',
       data: {
         freelancers: pageItems,
         total,
@@ -289,4 +525,193 @@ exports.listarFreelancersComMatchDaEmpresa = async (req, res) => {
       message: 'Erro interno ao calcular matches',
     });
   }
+};
+
+/* =============================================================================
+   B) FREELANCER → vagas compatíveis
+   GET /api/freelancers/:freelancerId/matches?pagina=1&limite=12&min_match=0&ai=on|off&llm=on|off
+   Filtros: area, nivel, modalidade, tipo (contrato), busca
+   ============================================================================ */
+exports.listarVagasCompativeisParaFreelancer = async (req, res) => {
+  try {
+    const { freelancerId } = req.params;
+
+    const pagina = Math.max(parseInt(req.query.pagina || '1', 10), 1);
+    const limite = Math.min(Math.max(parseInt(req.query.limite || '12', 10), 1), 100);
+    const minMatch = Math.max(parseInt(req.query.min_match || '0', 10), 0);
+
+    const { area, modalidade, nivel, tipo, busca } = req.query;
+    const useEmbed = String(req.query.ai || (AI_DEFAULT_ON ? 'on' : 'off')).toLowerCase() === 'on';
+    const useLLM   = String(req.query.llm || (LLM_DEFAULT_ON ? 'on' : 'off')).toLowerCase() === 'on';
+
+    // Carrega freelancer
+    const freelancer = await Freelancer.findByPk(freelancerId, {
+      attributes: { exclude: ['senha_hash'] }
+    });
+    if (!freelancer || freelancer.status !== 'ativo') {
+      return res.status(404).json({ success: false, message: 'Freelancer não encontrado ou inativo' });
+    }
+
+    // Vagas ativas + filtros (no banco)
+    const whereV = {};
+    if (area && area !== 'todas') whereV.area_atuacao = { [Op.iLike]: `%${area}%` };
+    const mod = normalizarModalidade(modalidade); if (mod) whereV.modalidade_trabalho = mod;
+    const niv = normalizarNivel(nivel); if (niv) whereV.nivel_experiencia = niv;
+    if (tipo) whereV.tipo_contrato = { [Op.iLike]: `%${tipo}%` };
+
+    const andBusca = [];
+    if (busca && String(busca).trim()) {
+      const q = String(busca).trim();
+      const term = `%${q}%`;
+      andBusca.push({
+        [Op.or]: [
+          { titulo: { [Op.iLike]: term } },
+          { area_atuacao: { [Op.iLike]: term } },
+          { descricao_geral: { [Op.iLike]: term } },
+          { habilidades_tecnicas: { [Op.iLike]: term } },
+          where(fn('array_to_string', col('skills_obrigatorias'), ','), { [Op.iLike]: term }),
+          where(fn('array_to_string', col('skills_desejaveis'), ','), { [Op.iLike]: term }),
+          where(fn('array_to_string', col('palavras_chave'), ','), { [Op.iLike]: term }),
+        ],
+      });
+    }
+    const whereVFinal = andBusca.length ? { [Op.and]: [whereV, ...andBusca] } : whereV;
+
+    const vagasAll = await Vaga.findAll({
+      where: whereVFinal,
+      attributes: [
+        'id','empresa_id','titulo','area_atuacao','nivel_experiencia','modalidade_trabalho','tipo_contrato',
+        'localizacao_texto','salario_minimo','salario_maximo','moeda',
+        'skills_obrigatorias','skills_desejaveis','habilidades_tecnicas',
+        'requisitos_obrigatorios','requisitos_desejados','descricao_geral',
+        'palavras_chave','idiomas_necessarios','status','visualizacoes','candidaturas',
+        'created_at','updated_at'
+      ],
+      order: [['created_at', 'DESC']]
+    });
+
+    const enumVals = Vaga.rawAttributes?.status?.values || [];
+    const vagasAtivas = vagasAll.filter((v) => vagaEstaAtiva(v, enumVals));
+
+    if (vagasAtivas.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Nenhuma vaga ativa encontrada',
+        data: { vagas: [], total: 0, totalPaginas: 1, pagina, limite }
+      });
+    }
+
+    // 1) Base score rápido
+    const cacheVagaFeat = new Map();
+    const cacheFreelaFeat = new Map();
+
+    let scored = vagasAtivas.map((v) => {
+      const base = scoreBaseFreelaVaga(freelancer, v, cacheVagaFeat, cacheFreelaFeat);
+      return { vaga: v, _score_base: base };
+    });
+
+    // Ordena por base e pega um "corte" para embeddings
+    scored.sort((a, b) => (b._score_base || 0) - (a._score_base || 0));
+
+    // 2) Embeddings Top K
+    if (useEmbed && openai && scored.length) {
+      const topK = scored.slice(0, EMBED_TOP_K);
+
+      const fKey = `fre:${freelancer.id}|${freelancer.updated_at || ''}`;
+      const fEmb = await getCachedEmbedding(fKey, async () => textoDoFreelancer(freelancer));
+
+      const vagaEmbeds = await mapWithConcurrency(topK, async (row) => {
+        const v = row.vaga;
+        const key = `vaga:${v.id}|${v.updated_at || ''}`;
+        return getCachedEmbedding(key, async () => textoDaVaga(v));
+      }, EMBEDDING_CONCURRENCY);
+
+      topK.forEach((row, idx) => {
+        const vEmb = vagaEmbeds[idx];
+        let sem = 0;
+        if (fEmb && vEmb) {
+          const cos = cosine(fEmb, vEmb);
+          sem = Math.round(((cos + 1) / 2) * 100);
+        }
+        row._score_embed = sem;
+      });
+
+      for (let i = EMBED_TOP_K; i < scored.length; i++) scored[i]._score_embed = 0;
+    } else {
+      for (const r of scored) r._score_embed = 0;
+    }
+
+    // 3) Combinar Base + Embedding
+    const wBase = Math.max(0, 1 - WEIGHT_EMBED - WEIGHT_LLM);
+    for (const r of scored) {
+      r._pre_llm = Math.round(wBase * (r._score_base || 0) + WEIGHT_EMBED * (r._score_embed || 0));
+    }
+    scored.sort((a, b) => (b._pre_llm || 0) - (a._pre_llm || 0));
+
+    // 4) LLM Top N (opcional)
+    if (useLLM && openai && scored.length) {
+      const topN = scored.slice(0, LLM_TOP_N);
+      const compacts = topN.map((x) => ({
+        id: x.vaga.id,
+        titulo: x.vaga.titulo,
+        nivel: x.vaga.nivel_experiencia,
+        modalidade: x.vaga.modalidade_trabalho,
+        skills: toArr(x.vaga.skills_obrigatorias).join(', '),
+        req: toArr(x.vaga.requisitos_obrigatorios).join(', '),
+        desc: (x.vaga.descricao_geral || '').slice(0, 1000)
+      }));
+      const llmScores = await llmRerankScores(textoDoFreelancer(freelancer), compacts);
+      const map = new Map(llmScores.map(x => [x.id, Number(x.score) || 0]));
+      for (const r of topN) r._score_llm = Math.max(0, Math.min(100, map.get(r.vaga.id) || 0));
+      for (const r of scored.slice(LLM_TOP_N)) r._score_llm = 0;
+    } else {
+      for (const r of scored) r._score_llm = 0;
+    }
+
+    // 5) Score final + sort
+    for (const r of scored) {
+      r.match_pct = Math.round(
+        wBase * (r._score_base || 0) +
+        WEIGHT_EMBED * (r._score_embed || 0) +
+        WEIGHT_LLM   * (r._score_llm || 0)
+      );
+    }
+    scored.sort((a, b) => (b.match_pct || 0) - (a.match_pct || 0));
+
+    // 6) Filtro min_match + paginação
+    const filtradas = scored.filter(x => (x.match_pct || 0) >= minMatch);
+    const total = filtradas.length;
+    const totalPaginas = Math.max(Math.ceil(total / limite), 1);
+    const inicio = (pagina - 1) * limite;
+    const fim = inicio + limite;
+
+    const pageItems = filtradas.slice(inicio, fim).map((x) => ({
+      ...x.vaga.toJSON(),
+      match_pct: x.match_pct
+    }));
+
+    return res.json({
+      success: true,
+      message: 'Vagas compatíveis com o perfil do freelancer (rápido + IA opcional)',
+      data: {
+        vagas: pageItems,
+        total,
+        totalPaginas,
+        pagina,
+        limite
+      }
+    });
+  } catch (err) {
+    console.error('Erro match vagas do freelancer:', err);
+    return res.status(500).json({
+      success: false,
+      message: 'Erro interno ao calcular matches para o freelancer',
+    });
+  }
+};
+
+/* ===== Exports explícitos (evita undefined no require) ===== */
+module.exports = {
+  listarFreelancersComMatchDaEmpresa: exports.listarFreelancersComMatchDaEmpresa,
+  listarVagasCompativeisParaFreelancer: exports.listarVagasCompativeisParaFreelancer,
 };

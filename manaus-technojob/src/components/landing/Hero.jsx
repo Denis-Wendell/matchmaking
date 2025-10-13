@@ -5,7 +5,7 @@ export default function Hero() {
   const [isVisible, setIsVisible] = useState(false);
   const [currentWord, setCurrentWord] = useState(0);
 
-  const highlightWords = ["Talentos", "Oportunidades", "Sucesso"];
+  const highlightWords = ["Talentos", "os Melhores", "Sucesso"];
 
   useEffect(() => {
     // Animação de entrada

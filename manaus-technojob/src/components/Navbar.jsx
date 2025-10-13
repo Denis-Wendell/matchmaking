@@ -5,31 +5,23 @@ function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   
-  // Estados para controlar autenticação e tipo de usuário
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userType, setUserType] = useState(null);
   const [userData, setUserData] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Verificar estado de autenticação ao carregar
   useEffect(() => {
     const checkAuth = () => {
       const loggedIn = localStorage.getItem('isLoggedIn') === 'true';
       const type = localStorage.getItem('userType');
-      
-      console.log('🔄 Navbar verificando auth:', { loggedIn, type }); // Debug
-      
       setIsLoggedIn(loggedIn);
       setUserType(type);
 
       if (loggedIn && type) {
-        // Carregar dados do usuário
         const storedData = localStorage.getItem(`${type}Data`);
         if (storedData) {
           try {
-            const parsedData = JSON.parse(storedData);
-            setUserData(parsedData);
-            console.log('✅ Dados do usuário carregados:', parsedData.nome); // Debug
+            setUserData(JSON.parse(storedData));
           } catch (error) {
             console.error('Erro ao carregar dados do usuário:', error);
           }
@@ -39,24 +31,18 @@ function Navbar() {
       }
     };
 
-    // Verificar estado inicial
     checkAuth();
 
-    // Listener para mudanças no localStorage (entre abas)
     const handleStorageChange = (e) => {
       if (e.key === 'isLoggedIn' || e.key === 'userType' || e.key?.includes('Data')) {
-        console.log('🔄 Storage mudou, verificando auth novamente'); // Debug
         checkAuth();
       }
     };
 
-    // IMPORTANTE: Listener para o evento customizado do performLogin
     const handleAuthChange = () => {
-      console.log('🔄 Evento authStateChanged recebido'); // Debug
       checkAuth();
     };
 
-    // Adicionar todos os listeners
     window.addEventListener('storage', handleStorageChange);
     window.addEventListener('authStateChanged', handleAuthChange);
     
@@ -66,10 +52,8 @@ function Navbar() {
     };
   }, []);
 
-  // Definir links baseado no estado de autenticação
   const getNavLinks = () => {
     if (!isLoggedIn) {
-      // Usuário não logado
       return [
         { path: '/', label: 'Início' },
         { path: '/cadastro-freelancer', label: 'Cadastro Freelancer' },
@@ -79,7 +63,6 @@ function Navbar() {
     }
 
     if (userType === 'freelancer') {
-      // Freelancer logado (SEM o link do perfil)
       return [
         { path: '/match-vaga', label: 'Match Vaga' },
         { path: '/minhas-candidaturas', label: 'Minhas Candidaturas' },
@@ -88,7 +71,6 @@ function Navbar() {
     }
 
     if (userType === 'empresa') {
-      // Empresa logada (SEM o link do perfil)
       return [
         { path: '/match-empresa', label: 'Match Empresa' },
         { path: '/vagas-cadastradas', label: 'Vagas Cadastradas' },
@@ -100,26 +82,16 @@ function Navbar() {
     return [];
   };
 
-  // Função para logout
   const handleLogout = () => {
-    console.log('🚪 Fazendo logout'); // Debug
-    
-    // Limpar localStorage
     localStorage.removeItem('isLoggedIn');
     localStorage.removeItem('userType');
     localStorage.removeItem('authToken');
     localStorage.removeItem('freelancerData');
     localStorage.removeItem('empresaData');
-    
-    // Disparar evento para sincronizar
     window.dispatchEvent(new CustomEvent('authStateChanged'));
-    
-    // Atualizar estados locais
     setIsLoggedIn(false);
     setUserType(null);
     setUserData(null);
-    
-    // Redirecionar para home
     navigate('/');
   };
 
@@ -132,9 +104,15 @@ function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center">
-            <span className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Manaus TechnoJob
-            </span>
+            {/* wrapper relative para a imagem absolute funcionar */}
+            <div className="relative h-10 w-40">
+              <img
+                src="/images/logo_ManTechno.png"
+                alt="Escritório moderno com equipe"
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="eager"
+              />
+            </div>
           </Link>
 
           {/* Navigation Links - Desktop */}
@@ -165,7 +143,6 @@ function Navbar() {
               </Link>
             ) : (
               <div className="flex items-center space-x-3">
-                {/* Nome do usuário + Link para perfil */}
                 {userData && (
                   <Link
                     to={userType === 'freelancer' ? '/perfil-freelancer' : '/perfil-empresa'}
@@ -174,8 +151,6 @@ function Navbar() {
                     Olá, <span className="font-medium">{userData.nome}</span>
                   </Link>
                 )}
-                
-                {/* Badge do tipo de usuário */}
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${
                   userType === 'freelancer' 
                     ? 'bg-green-100 text-green-800' 
@@ -183,8 +158,6 @@ function Navbar() {
                 }`}>
                   {userType === 'freelancer' ? 'Freelancer' : 'Empresa'}
                 </span>
-
-                {/* Botão de logout */}
                 <button
                   onClick={handleLogout}
                   className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-200"
@@ -232,7 +205,6 @@ function Navbar() {
                 </Link>
               ))}
               
-              {/* Mobile User Actions */}
               <div className="pt-4 pb-3 border-t border-gray-200">
                 {!isLoggedIn ? (
                   <Link

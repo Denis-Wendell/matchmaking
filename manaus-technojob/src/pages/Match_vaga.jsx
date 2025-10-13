@@ -3,45 +3,57 @@ import { useNavigate } from 'react-router-dom';
 
 function Match_vaga() {
   const navigate = useNavigate();
-  
-  // Estados principais (mantidos do seu código funcional)
+
+  // Estados principais
   const [vagas, setVagas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [freelancerData, setFreelancerData] = useState(null);
-  
-  // Estados para filtros e busca
+  const SHOW_AI_CONTROLS = false;
+
+  // Filtros suportados pelo endpoint de MATCH
   const [filtros, setFiltros] = useState({
     area: '',
     nivel: '',
     modalidade: '',
     tipo: '',
-    salario: '',
     busca: ''
   });
-  
-  // Estados para paginação
+
+  // Parâmetros do endpoint
+  const [minMatch, setMinMatch] = useState(30); // ?min_match=30
+  const [aiOn, setAiOn] = useState(true);       // ?ai=on  (embeddings)
+  const [llmOn, setLlmOn] = useState(false);    // ?llm=on (rerank LLM)
+
+  // Paginação
   const [paginacao, setPaginacao] = useState({
     pagina: 1,
     totalPaginas: 1,
     total: 0
   });
-  
-  // Estados para candidatura e detalhes
+
+  // Candidatura e detalhes
   const [vagaCandidatura, setVagaCandidatura] = useState(null);
   const [modalCandidatura, setModalCandidatura] = useState(false);
   const [candidaturaLoading, setCandidaturaLoading] = useState(false);
   const [mensagemCandidatura, setMensagemCandidatura] = useState('');
   const [vagasSalvas, setVagasSalvas] = useState(new Set());
-  
-  // Estados para modal de detalhes da vaga
+
+  // Modal de detalhes (layout antigo mantido)
   const [vagaDetalhes, setVagaDetalhes] = useState(null);
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [detalhesLoading, setDetalhesLoading] = useState(false);
 
-  // Verificar autenticação ao carregar (sua lógica mantida)
+  /* ========= Debounce de busca (300ms) ========= */
+  const [buscaQuery, setBuscaQuery] = useState('');
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem('isLoggedIn');
+    const t = setTimeout(() => setBuscaQuery(filtros.busca.trim()), 300);
+    return () => clearTimeout(t);
+  }, [filtros.busca]);
+
+  // Verificar autenticação e perfil
+  useEffect(() => {
+    const isLoggedIn = localStorage.getItem('isLoggedIn') === 'true';
     const userType = localStorage.getItem('userType');
     const freelancerDataStored = localStorage.getItem('freelancerData');
 
@@ -59,57 +71,94 @@ function Match_vaga() {
         navigate('/login');
         return;
       }
+    } else {
+      navigate('/login');
+      return;
     }
+  }, [navigate]);
 
+  // Carregar vagas compatíveis sempre que algo relevante mudar
+  useEffect(() => {
+    if (!freelancerData?.id) return;
     carregarVagas();
-  }, [navigate, filtros, paginacao.pagina]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    freelancerData?.id,
+    filtros.area,
+    filtros.nivel,
+    filtros.modalidade,
+    filtros.tipo,
+    buscaQuery,
+    paginacao.pagina,
+    minMatch,
+    aiOn,
+    llmOn
+  ]);
 
-  // Carregar vagas ativas (sua lógica API mantida)
   const carregarVagas = async () => {
     try {
       setLoading(true);
       setError('');
 
+      const token = localStorage.getItem('authToken');
+
       const queryParams = new URLSearchParams({
-        pagina: paginacao.pagina,
-        limite: 12
+        pagina: String(paginacao.pagina),
+        limite: '12',
       });
 
-      // Adicionar filtros se preenchidos
-      if (filtros.area) queryParams.append('area', filtros.area);
-      if (filtros.nivel) queryParams.append('nivel', filtros.nivel);
+      if (filtros.area)       queryParams.append('area', filtros.area);
+      if (filtros.nivel)      queryParams.append('nivel', filtros.nivel);
       if (filtros.modalidade) queryParams.append('modalidade', filtros.modalidade);
-      if (filtros.tipo) queryParams.append('tipo', filtros.tipo);
-      if (filtros.salario) queryParams.append('salario', filtros.salario);
+      if (filtros.tipo)       queryParams.append('tipo', filtros.tipo);
+      if (buscaQuery)         queryParams.append('busca', buscaQuery);
+      if (minMatch)           queryParams.append('min_match', String(minMatch));
+      if (aiOn)               queryParams.append('ai', 'on');
+      if (llmOn)              queryParams.append('llm', 'on');
 
-      const response = await fetch(`http://localhost:3001/api/vagas?${queryParams}`, {
+      const url = `http://localhost:3001/api/freelancers/${freelancerData.id}/matches?${queryParams.toString()}`;
+
+      const response = await fetch(url, {
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          'Authorization': token ? `Bearer ${token}` : ''
         }
       });
 
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setVagas(result.data.vagas);
-        setPaginacao(prev => ({
-          ...prev,
-          total: result.data.total,
-          totalPaginas: result.data.totalPaginas
-        }));
+        const total = result.data.total || 0;
+        const totalPaginas = result.data.totalPaginas || 1;
+        const paginaResp = result.data.pagina || 1;
+
+        setVagas(result.data.vagas || []);
+        setPaginacao(prev => {
+          // se a página atual for maior que o total, recua para a última válida
+          const paginaAjustada = Math.min(paginaResp, totalPaginas);
+          return {
+            ...prev,
+            pagina: paginaAjustada,
+            total,
+            totalPaginas
+          };
+        });
       } else {
         setError(result.message || 'Erro ao carregar vagas');
+        setVagas([]);
+        setPaginacao(prev => ({ ...prev, total: 0, totalPaginas: 1 }));
       }
-
-    } catch (error) {
-      console.error('Erro ao carregar vagas:', error);
+    } catch (e) {
+      console.error('Erro ao carregar vagas:', e);
       setError('Erro de conexão. Tente novamente.');
+      setVagas([]);
+      setPaginacao(prev => ({ ...prev, total: 0, totalPaginas: 1 }));
     } finally {
       setLoading(false);
     }
   };
 
-  // Candidatar-se a uma vaga (sua lógica mantida)
+  // Candidatar-se
   const candidatarSe = async () => {
     if (!vagaCandidatura) return;
 
@@ -134,8 +183,8 @@ function Match_vaga() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setVagas(prev => prev.map(vaga => 
-          vaga.id === vagaCandidatura.id 
+        setVagas(prev => prev.map(vaga =>
+          vaga.id === vagaCandidatura.id
             ? { ...vaga, candidaturas: (vaga.candidaturas || 0) + 1 }
             : vaga
         ));
@@ -153,12 +202,11 @@ function Match_vaga() {
         } else {
           alert(`❌ Erro ao enviar candidatura: ${result.message}`);
         }
-        
+
         setModalCandidatura(false);
         setVagaCandidatura(null);
         setMensagemCandidatura('');
       }
-
     } catch (error) {
       console.error('Erro ao se candidatar:', error);
       alert('Erro de conexão. Tente novamente.');
@@ -167,7 +215,7 @@ function Match_vaga() {
     }
   };
 
-  // Função para salvar vaga (inspirada no código do colega)
+  // Salvar vaga
   const handleSalvarVaga = (vaga) => {
     const novasVagasSalvas = new Set(vagasSalvas);
     if (vagasSalvas.has(vaga.id)) {
@@ -180,67 +228,35 @@ function Match_vaga() {
     setVagasSalvas(novasVagasSalvas);
   };
 
-  // Ver detalhes completos da vaga
+  // Ver detalhes (mantém layout antigo) — injeta match_pct do card
   const handleVerDetalhes = async (vaga) => {
     setDetalhesLoading(true);
     setModalDetalhes(true);
-    
+
     try {
-      // Buscar dados completos da vaga na API
       const response = await fetch(`http://localhost:3001/api/vagas/${vaga.id}`, {
-        headers: {
-          'Content-Type': 'application/json'
-        }
+        headers: { 'Content-Type': 'application/json' }
       });
 
       const result = await response.json();
 
       if (response.ok && result.success) {
-        setVagaDetalhes(result.data);
+        setVagaDetalhes({ ...result.data, match_pct: vaga.match_pct });
       } else {
-        // Se não conseguir buscar detalhes, usa os dados que já temos
         setVagaDetalhes(vaga);
         console.warn('Não foi possível carregar detalhes completos:', result.message);
       }
     } catch (error) {
       console.error('Erro ao carregar detalhes da vaga:', error);
-      // Em caso de erro, usa os dados básicos que já temos
       setVagaDetalhes(vaga);
     } finally {
       setDetalhesLoading(false);
     }
   };
 
-  // Calcular match percentual (simulado)
-  const calcularMatch = (vaga) => {
-    if (!freelancerData) return 75;
-    
-    let score = 60; // Base
-    
-    // Match por área
-    if (freelancerData.area_atuacao && vaga.area_atuacao === freelancerData.area_atuacao) {
-      score += 20;
-    }
-    
-    // Match por modalidade
-    if (freelancerData.modalidade_trabalho && vaga.modalidade_trabalho === freelancerData.modalidade_trabalho) {
-      score += 10;
-    }
-    
-    // Match por skills
-    if (freelancerData.principais_habilidades && vaga.skills_obrigatorias) {
-      const skillsFreelancer = freelancerData.principais_habilidades.toLowerCase();
-      const matchSkills = vaga.skills_obrigatorias.some(skill => 
-        skillsFreelancer.includes(skill.toLowerCase())
-      );
-      if (matchSkills) score += 10;
-    }
-    
-    return Math.min(score, 98); // Max 98%
-  };
-
-  // Formatadores (suas funções mantidas)
+  // Utilitários
   const formatarData = (dataString) => {
+    if (!dataString) return '-';
     const agora = new Date();
     const dataVaga = new Date(dataString);
     const diffTime = agora - dataVaga;
@@ -254,60 +270,40 @@ function Match_vaga() {
 
   const formatarSalario = (min, max, moeda = 'BRL') => {
     if (!min && !max) return 'A combinar';
-    
-    const formatNumber = (num) => {
-      return new Intl.NumberFormat('pt-BR', {
-        style: 'currency',
-        currency: moeda
-      }).format(num);
-    };
-
-    if (min && max) {
-      return `${formatNumber(min)} - ${formatNumber(max)}`;
-    }
+    const formatNumber = (num) =>
+      new Intl.NumberFormat('pt-BR', { style: 'currency', currency: moeda }).format(num);
+    if (min && max) return `${formatNumber(min)} - ${formatNumber(max)}`;
     return min ? `A partir de ${formatNumber(min)}` : `Até ${formatNumber(max)}`;
   };
 
   const getNivelColor = (nivel) => {
     const colors = {
-      'junior': 'bg-green-100 text-green-800',
-      'pleno': 'bg-blue-100 text-blue-800', 
-      'senior': 'bg-purple-100 text-purple-800',
-      'especialista': 'bg-red-100 text-red-800'
+      junior: 'bg-green-100 text-green-800',
+      pleno: 'bg-blue-100 text-blue-800',
+      senior: 'bg-purple-100 text-purple-800',
+      especialista: 'bg-red-100 text-red-800'
     };
     return colors[nivel] || 'bg-gray-100 text-gray-800';
   };
 
-  // Filtrar vagas por busca local (sua lógica mantida)
-  const vagasFiltradas = vagas.filter(vaga => {
-    if (!filtros.busca) return true;
-    const busca = filtros.busca.toLowerCase();
-    return (
-      vaga.titulo.toLowerCase().includes(busca) ||
-      vaga.area_atuacao.toLowerCase().includes(busca) ||
-      vaga.empresa?.nome?.toLowerCase().includes(busca) ||
-      vaga.localizacao_texto.toLowerCase().includes(busca) ||
-      vaga.habilidades_tecnicas?.toLowerCase().includes(busca) ||
-      (vaga.skills_obrigatorias && vaga.skills_obrigatorias.some(skill => 
-        skill.toLowerCase().includes(busca)
-      ))
-    );
-  });
-
+  // Loading inicial
   if (loading && vagas.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="bg-white p-8 rounded-lg shadow-md text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando vagas disponíveis...</p>
+          <p className="text-gray-600">Carregando vagas compatíveis...</p>
         </div>
       </div>
     );
   }
 
+  // Sem filtro local — o backend já devolve filtrado/ordenado
+  const vagasFiltradas = vagas;
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header melhorado (inspirado no código do colega) */}
+      {/* Header */}
       <div className="bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <div className="text-center">
@@ -319,7 +315,7 @@ function Match_vaga() {
             </p>
             {freelancerData && (
               <p className="text-sm text-blue-600">
-                Bem-vindo, {freelancerData.nome}! • {paginacao.total} vaga(s) disponível(is)
+                Bem-vindo, {freelancerData.nome}! • {paginacao.total} vaga(s) compatível(is)
               </p>
             )}
           </div>
@@ -327,12 +323,12 @@ function Match_vaga() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 py-8">
-        {/* Filtros melhorados (combinando ambos os códigos) */}
+        {/* Filtros */}
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtrar Vagas</h2>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
-            {/* Área de Atuação */}
+            {/* Área */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Área
@@ -395,7 +391,7 @@ function Match_vaga() {
               </select>
             </div>
 
-            {/* Tipo de Contrato */}
+            {/* Tipo de contrato */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Contrato
@@ -417,31 +413,34 @@ function Match_vaga() {
               </select>
             </div>
 
-            {/* Faixa Salarial */}
-            <div>
+            {/* Busca */}
+            <div className="xl:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Faixa Salarial
+                Busca
               </label>
-              <select
-                value={filtros.salario}
+              <input
+                type="text"
+                value={filtros.busca}
                 onChange={(e) => {
-                  setFiltros(prev => ({ ...prev, salario: e.target.value }));
+                  setFiltros(prev => ({ ...prev, busca: e.target.value }));
                   setPaginacao(prev => ({ ...prev, pagina: 1 }));
                 }}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">Todas as faixas</option>
-                <option value="ate5k">Até R$ 5.000</option>
-                <option value="5k-10k">R$ 5.000 - R$ 10.000</option>
-                <option value="acima10k">Acima de R$ 10.000</option>
-              </select>
+                placeholder="Busque por título, empresa, skills ou localização..."
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500"
+              />
+              {filtros.busca && (
+                <p className="text-xs text-gray-500 mt-1">Aplicando após ~300ms…</p>
+              )}
             </div>
 
-            {/* Botão Limpar Filtros */}
+            {/* Limpar */}
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', salario: '', busca: '' });
+                  setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', busca: '' });
+                  setMinMatch(30);
+                  setAiOn(true);
+                  setLlmOn(false);
                   setPaginacao(prev => ({ ...prev, pagina: 1 }));
                 }}
                 className="w-full px-3 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -451,24 +450,65 @@ function Match_vaga() {
             </div>
           </div>
 
-          {/* Busca */}
-          <div className="mb-4">
-            <input
-              type="text"
-              value={filtros.busca}
-              onChange={(e) => setFiltros(prev => ({ ...prev, busca: e.target.value }))}
-              placeholder="Busque por título, empresa, skills ou localização..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
+          {/* Linha de controles extra */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Mínimo de Match */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Mínimo de Match: <span className="text-blue-700 font-semibold">{minMatch}%</span>
+              </label>
+              <input
+                type="range"
+                min="0"
+                max="100"
+                value={minMatch}
+                onChange={(e) => {
+                  setMinMatch(parseInt(e.target.value, 10));
+                  setPaginacao(prev => ({ ...prev, pagina: 1 }));
+                }}
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">Exibe somente vagas com match ≥ {minMatch}%</p>
+            </div>
 
-          {/* Contador de resultados */}
-          <div className="text-sm text-gray-600">
-            <span className="font-medium text-blue-600">{vagasFiltradas.length}</span> vagas encontradas
+            {/* IA embeddings + LLM (ocultos do usuário final) */}
+            {SHOW_AI_CONTROLS && (
+              <>
+                <div className="flex items-end">
+                  <label className="inline-flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={aiOn}
+                      onChange={(e) => {
+                        setAiOn(e.target.checked);
+                        setPaginacao(prev => ({ ...prev, pagina: 1 }));
+                      }}
+                      className="h-5 w-5 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">Usar IA (embeddings)</span>
+                  </label>
+                </div>
+
+                <div className="flex items-end">
+                  <label className="inline-flex items-center space-x-3">
+                    <input
+                      type="checkbox"
+                      checked={llmOn}
+                      onChange={(e) => {
+                        setLlmOn(e.target.checked);
+                        setPaginacao(prev => ({ ...prev, pagina: 1 }));
+                      }}
+                      className="h-5 w-5 text-blue-600"
+                    />
+                    <span className="text-sm text-gray-700">Usar re-rank por LLM</span>
+                  </label>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Tratamento de erros */}
+        {/* Erros */}
         {error && (
           <div className="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
             <p className="text-red-700">{error}</p>
@@ -481,17 +521,20 @@ function Match_vaga() {
           </div>
         )}
 
-        {/* Lista de Vagas - Cada card ocupa linha completa */}
+        {/* Lista de vagas */}
         {vagasFiltradas.length === 0 ? (
           <div className="bg-white p-8 rounded-lg shadow-md text-center">
             <p className="text-gray-600 mb-4">
-              {filtros.busca || filtros.area || filtros.nivel || filtros.modalidade || filtros.tipo || filtros.salario
+              {filtros.busca || filtros.area || filtros.nivel || filtros.modalidade || filtros.tipo || minMatch > 0
                 ? 'Nenhuma vaga encontrada com os filtros selecionados.'
                 : 'Nenhuma vaga disponível no momento.'}
             </p>
             <button
               onClick={() => {
-                setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', salario: '', busca: '' });
+                setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', busca: '' });
+                setMinMatch(30);
+                setAiOn(true);
+                setLlmOn(false);
                 setPaginacao(prev => ({ ...prev, pagina: 1 }));
               }}
               className="text-blue-600 hover:text-blue-800 underline"
@@ -502,19 +545,17 @@ function Match_vaga() {
         ) : (
           <div className="space-y-6">
             {vagasFiltradas.map((vaga) => {
-              const matchPercentual = calcularMatch(vaga);
+              const matchPercentual = typeof vaga.match_pct === 'number' ? vaga.match_pct : 0;
+
               return (
                 <div key={vaga.id} className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow w-full">
-                  {/* Card ocupa linha completa - layout horizontal */}
                   <div className="flex items-start space-x-4 w-full">
-                    {/* Logo da empresa */}
+                    {/* Logo */}
                     <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center text-2xl text-white font-bold flex-shrink-0">
-                      {vaga.empresa?.nome?.charAt(0) || 'E'}
+                      {(vaga.empresa && vaga.empresa.nome && vaga.empresa.nome.charAt(0)) || 'E'}
                     </div>
 
-                    {/* Informações principais - ocupam toda a largura restante */}
                     <div className="flex-1">
-                      {/* Header da vaga */}
                       <div className="flex items-center justify-between mb-2">
                         <div>
                           <h3 className="text-xl font-bold text-gray-900">
@@ -528,10 +569,10 @@ function Match_vaga() {
                           <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
                             {matchPercentual}% Match
                           </div>
-                          <button 
+                          <button
                             className={`transition-colors ${
-                              vagasSalvas.has(vaga.id) 
-                                ? 'text-yellow-500' 
+                              vagasSalvas.has(vaga.id)
+                                ? 'text-yellow-500'
                                 : 'text-gray-400 hover:text-yellow-500'
                             }`}
                             onClick={() => handleSalvarVaga(vaga)}
@@ -544,31 +585,30 @@ function Match_vaga() {
                         </div>
                       </div>
 
-                      {/* Informações detalhadas em grid */}
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm text-gray-600 mb-4">
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                           </svg>
-                          {vaga.localizacao_texto}
+                          {vaga.localizacao_texto || '-'}
                         </span>
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M6 6V5a3 3 0 013-3h2a3 3 0 013 3v1h2a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V8a2 2 0 012-2h2zm4-3a1 1 0 00-1 1v1h2V4a1 1 0 00-1-1z" />
                           </svg>
-                          {vaga.modalidade_trabalho}
+                          {vaga.modalidade_trabalho || '-'}
                         </span>
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          {vaga.nivel_experiencia}
+                          {vaga.nivel_experiencia || '-'}
                         </span>
                         <span className="flex items-center">
                           <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                           </svg>
-                          {vaga.tipo_contrato}
+                          {vaga.tipo_contrato || '-'}
                         </span>
                         <span className="flex items-center font-medium text-green-600">
                           <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
@@ -578,11 +618,11 @@ function Match_vaga() {
                         </span>
                       </div>
 
-                      {/* Descrição da vaga */}
-                      <p className="text-gray-700 mb-4">{vaga.descricao_geral}</p>
+                      {vaga.descricao_geral && (
+                        <p className="text-gray-700 mb-4">{vaga.descricao_geral}</p>
+                      )}
 
-                      {/* Tags de skills */}
-                      {vaga.skills_obrigatorias && vaga.skills_obrigatorias.length > 0 && (
+                      {Array.isArray(vaga.skills_obrigatorias) && vaga.skills_obrigatorias.length > 0 && (
                         <div className="mb-4">
                           <div className="flex flex-wrap gap-2">
                             {vaga.skills_obrigatorias.slice(0, 8).map((skill, index) => (
@@ -599,15 +639,13 @@ function Match_vaga() {
                         </div>
                       )}
 
-                      {/* Footer do card */}
                       <div className="flex items-center justify-between pt-4 border-t border-gray-200">
                         <div className="text-sm text-gray-600">
-                          Publicada <span className="font-medium">{formatarData(vaga.created_at)}</span> • 
-                          <span className="font-medium text-red-600">Candidatar até em breve</span>
+                          Publicada <span className="font-medium">{formatarData(vaga.created_at)}</span>
                         </div>
-                        
+
                         <div className="flex space-x-3">
-                          <button 
+                          <button
                             onClick={() => handleVerDetalhes(vaga)}
                             className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors text-sm"
                           >
@@ -632,7 +670,7 @@ function Match_vaga() {
           </div>
         )}
 
-        {/* Paginação melhorada */}
+        {/* Paginação */}
         {paginacao.totalPaginas > 1 && (
           <div className="flex justify-center mt-8">
             <div className="flex space-x-2">
@@ -643,11 +681,11 @@ function Match_vaga() {
               >
                 Anterior
               </button>
-              
+
               <span className="px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
                 {paginacao.pagina} de {paginacao.totalPaginas}
               </span>
-              
+
               <button
                 onClick={() => setPaginacao(prev => ({ ...prev, pagina: prev.pagina + 1 }))}
                 disabled={paginacao.pagina === paginacao.totalPaginas || loading}
@@ -659,7 +697,7 @@ function Match_vaga() {
           </div>
         )}
 
-        {/* Modal de Detalhes da Vaga */}
+        {/* Modal de Detalhes (original) */}
         {modalDetalhes && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -681,7 +719,7 @@ function Match_vaga() {
                         <p className="text-lg text-gray-600 font-medium">{vagaDetalhes.empresa?.nome || 'Empresa'}</p>
                         <div className="flex items-center gap-2 mt-2">
                           <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                            {calcularMatch(vagaDetalhes)}% Match
+                            {(typeof vagaDetalhes.match_pct === 'number' ? vagaDetalhes.match_pct : 0)}% Match
                           </span>
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getNivelColor(vagaDetalhes.nivel_experiencia)}`}>
                             {vagaDetalhes.nivel_experiencia}
@@ -706,35 +744,48 @@ function Match_vaga() {
                   <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
                     <div className="lg:col-span-2">
                       {/* Descrição */}
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900 mb-3">Descrição da Vaga</h3>
-                        <div className="prose prose-sm text-gray-700">
-                          <p className="whitespace-pre-line">{vagaDetalhes.descricao_geral}</p>
+                      {vagaDetalhes.descricao_geral && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Descrição da Vaga</h3>
+                          <div className="prose prose-sm text-gray-700">
+                            <p className="whitespace-pre-line">{vagaDetalhes.descricao_geral}</p>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       {/* Responsabilidades */}
-                      {vagaDetalhes.responsabilidades && (
+                      {vagaDetalhes.principais_responsabilidades && (
                         <div className="mb-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Responsabilidades</h3>
                           <div className="prose prose-sm text-gray-700">
-                            <p className="whitespace-pre-line">{vagaDetalhes.responsabilidades}</p>
+                            <p className="whitespace-pre-line">{vagaDetalhes.principais_responsabilidades}</p>
                           </div>
                         </div>
                       )}
 
                       {/* Requisitos */}
-                      {vagaDetalhes.requisitos && (
+                      {(vagaDetalhes.requisitos_obrigatorios || vagaDetalhes.requisitos_desejados) && (
                         <div className="mb-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Requisitos</h3>
-                          <div className="prose prose-sm text-gray-700">
-                            <p className="whitespace-pre-line">{vagaDetalhes.requisitos}</p>
+                          <div className="prose prose-sm text-gray-700 space-y-3">
+                            {vagaDetalhes.requisitos_obrigatorios && (
+                              <>
+                                <p className="font-medium">Obrigatórios:</p>
+                                <p className="whitespace-pre-line">{Array.isArray(vagaDetalhes.requisitos_obrigatorios) ? vagaDetalhes.requisitos_obrigatorios.join(', ') : vagaDetalhes.requisitos_obrigatorios}</p>
+                              </>
+                            )}
+                            {vagaDetalhes.requisitos_desejados && (
+                              <>
+                                <p className="font-medium">Desejáveis:</p>
+                                <p className="whitespace-pre-line">{Array.isArray(vagaDetalhes.requisitos_desejados) ? vagaDetalhes.requisitos_desejados.join(', ') : vagaDetalhes.requisitos_desejados}</p>
+                              </>
+                            )}
                           </div>
                         </div>
                       )}
 
-                      {/* Skills Obrigatórias */}
-                      {vagaDetalhes.skills_obrigatorias && vagaDetalhes.skills_obrigatorias.length > 0 && (
+                      {/* Skills */}
+                      {Array.isArray(vagaDetalhes.skills_obrigatorias) && vagaDetalhes.skills_obrigatorias.length > 0 && (
                         <div className="mb-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills Obrigatórias</h3>
                           <div className="flex flex-wrap gap-2">
@@ -746,9 +797,7 @@ function Match_vaga() {
                           </div>
                         </div>
                       )}
-
-                      {/* Skills Desejáveis */}
-                      {vagaDetalhes.skills_desejaveis && vagaDetalhes.skills_desejaveis.length > 0 && (
+                      {Array.isArray(vagaDetalhes.skills_desejaveis) && vagaDetalhes.skills_desejaveis.length > 0 && (
                         <div className="mb-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills Desejáveis</h3>
                           <div className="flex flex-wrap gap-2">
@@ -761,12 +810,11 @@ function Match_vaga() {
                         </div>
                       )}
 
-                      {/* Informações da Vaga - Movido para cá */}
+                      {/* Informações da Vaga */}
                       <div className="bg-gray-50 rounded-lg p-4 mb-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Vaga</h3>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {/* Salário */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Salário</label>
                             <p className="text-lg font-semibold text-green-600">
@@ -774,35 +822,30 @@ function Match_vaga() {
                             </p>
                           </div>
 
-                          {/* Localização */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Localização</label>
-                            <p className="text-gray-900">{vagaDetalhes.localizacao_texto}</p>
+                            <p className="text-gray-900">{vagaDetalhes.localizacao_texto || '-'}</p>
                           </div>
 
-                          {/* Modalidade */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Modalidade</label>
                             <span className="inline-block bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                              {vagaDetalhes.modalidade_trabalho}
+                              {vagaDetalhes.modalidade_trabalho || '-'}
                             </span>
                           </div>
 
-                          {/* Tipo de Contrato */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Tipo de Contrato</label>
                             <span className="inline-block bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm">
-                              {vagaDetalhes.tipo_contrato}
+                              {vagaDetalhes.tipo_contrato || '-'}
                             </span>
                           </div>
 
-                          {/* Área de Atuação */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Área</label>
-                            <p className="text-gray-900">{vagaDetalhes.area_atuacao}</p>
+                            <p className="text-gray-900">{vagaDetalhes.area_atuacao || '-'}</p>
                           </div>
 
-                          {/* Experiência */}
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Nível</label>
                             <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getNivelColor(vagaDetalhes.nivel_experiencia)}`}>
@@ -811,7 +854,6 @@ function Match_vaga() {
                           </div>
                         </div>
 
-                        {/* Estatísticas */}
                         <div className="border-t border-gray-200 mt-4 pt-4">
                           <label className="block text-sm font-medium text-gray-600 mb-2">Estatísticas</label>
                           <div className="flex gap-4 text-sm text-gray-600">
@@ -823,11 +865,11 @@ function Match_vaga() {
                       </div>
 
                       {/* Benefícios */}
-                      {vagaDetalhes.beneficios && vagaDetalhes.beneficios.length > 0 && (
+                      {Array.isArray(vagaDetalhes.beneficios_oferecidos) && vagaDetalhes.beneficios_oferecidos.length > 0 && (
                         <div className="mb-6">
                           <h3 className="text-lg font-semibold text-gray-900 mb-3">Benefícios</h3>
                           <div className="flex flex-wrap gap-2">
-                            {vagaDetalhes.beneficios.map((beneficio, index) => (
+                            {vagaDetalhes.beneficios_oferecidos.map((beneficio, index) => (
                               <span key={index} className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm">
                                 {beneficio}
                               </span>
@@ -841,17 +883,15 @@ function Match_vaga() {
                     <div className="lg:col-span-1">
                       <div className="bg-gray-50 rounded-lg p-4 sticky top-4">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Ações</h3>
-                        
-                        {/* Match percentual */}
+
                         <div className="mb-4">
                           <div className="flex items-center justify-center">
                             <span className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-lg font-bold">
-                              {calcularMatch(vagaDetalhes)}% Match
+                              {(typeof vagaDetalhes.match_pct === 'number' ? vagaDetalhes.match_pct : 0)}% Match
                             </span>
                           </div>
                         </div>
 
-                        {/* Botões de ação */}
                         <div className="space-y-3">
                           <button
                             onClick={() => {
@@ -863,7 +903,7 @@ function Match_vaga() {
                           >
                             Candidatar-se à Vaga
                           </button>
-                          
+
                           <button
                             onClick={() => handleSalvarVaga(vagaDetalhes)}
                             className={`w-full px-4 py-3 border rounded-lg transition-colors font-medium ${
@@ -876,21 +916,20 @@ function Match_vaga() {
                           </button>
                         </div>
 
-                        {/* Informações rápidas */}
                         <div className="mt-6 pt-4 border-t border-gray-200">
                           <h4 className="font-medium text-gray-900 mb-3">Informações Rápidas</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Modalidade:</span>
-                              <span className="font-medium">{vagaDetalhes.modalidade_trabalho}</span>
+                              <span className="font-medium">{vagaDetalhes.modalidade_trabalho || '-'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-600">Contrato:</span>
-                              <span className="font-medium">{vagaDetalhes.tipo_contrato}</span>
+                              <span className="font-medium">{vagaDetalhes.tipo_contrato || '-'}</span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-gray-600">Nível:</span>
-                              <span className="font-medium">{vagaDetalhes.nivel_experiencia}</span>
+                              <span className="font-medium">{vagaDetalhes.nivel_experiencia || '-'}</span>
                             </div>
                           </div>
                         </div>
@@ -898,7 +937,7 @@ function Match_vaga() {
                     </div>
                   </div>
 
-                  {/* Informações da Empresa */}
+                  {/* Sobre a empresa */}
                   {vagaDetalhes.empresa && (
                     <div className="border-t border-gray-200 pt-6">
                       <h3 className="text-lg font-semibold text-gray-900 mb-4">Sobre a Empresa</h3>
@@ -941,24 +980,24 @@ function Match_vaga() {
           </div>
         )}
 
-        {/* Modal de Candidatura melhorado */}
+        {/* Modal de Candidatura */}
         {modalCandidatura && vagaCandidatura && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-md w-full p-6">
               <h3 className="text-lg font-semibold mb-4">
                 Candidatar-se à Vaga
               </h3>
-              
+
               <div className="mb-4">
                 <h4 className="font-medium text-gray-900">{vagaCandidatura.titulo}</h4>
                 <p className="text-sm text-gray-600">{vagaCandidatura.empresa?.nome}</p>
                 <div className="mt-2">
                   <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                    {calcularMatch(vagaCandidatura)}% Match
+                    {(typeof vagaCandidatura.match_pct === 'number' ? vagaCandidatura.match_pct : 0)}% Match
                   </span>
                 </div>
               </div>
-              
+
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Mensagem para o recrutador (opcional)
@@ -975,7 +1014,7 @@ function Match_vaga() {
                   {mensagemCandidatura.length}/500 caracteres
                 </p>
               </div>
-              
+
               <div className="flex gap-3">
                 <button
                   onClick={candidatarSe}
@@ -984,7 +1023,7 @@ function Match_vaga() {
                 >
                   {candidaturaLoading ? 'Enviando...' : 'Confirmar Candidatura'}
                 </button>
-                
+
                 <button
                   onClick={() => {
                     setModalCandidatura(false);
