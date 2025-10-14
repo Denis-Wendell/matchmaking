@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 function Match_vaga() {
@@ -11,17 +11,15 @@ function Match_vaga() {
   const [freelancerData, setFreelancerData] = useState(null);
   const SHOW_AI_CONTROLS = false;
 
-  // Filtros suportados pelo endpoint de MATCH
+  // Filtros suportados pelo endpoint de MATCH (sem 'busca')
   const [filtros, setFiltros] = useState({
     area: '',
     nivel: '',
     modalidade: '',
-    tipo: '',
-    busca: ''
+    tipo: ''
   });
 
   // Parâmetros do endpoint
-  const [minMatch, setMinMatch] = useState(30); // ?min_match=30
   const [aiOn, setAiOn] = useState(true);       // ?ai=on  (embeddings)
   const [llmOn, setLlmOn] = useState(false);    // ?llm=on (rerank LLM)
 
@@ -32,24 +30,24 @@ function Match_vaga() {
     total: 0
   });
 
-  // Candidatura e detalhes
+  // Candidaturas + toast
   const [vagaCandidatura, setVagaCandidatura] = useState(null);
   const [modalCandidatura, setModalCandidatura] = useState(false);
   const [candidaturaLoading, setCandidaturaLoading] = useState(false);
   const [mensagemCandidatura, setMensagemCandidatura] = useState('');
   const [vagasSalvas, setVagasSalvas] = useState(new Set());
+  const [vagasCandidatadas, setVagasCandidatadas] = useState(new Set()); // <- usado nos cards
 
-  // Modal de detalhes (layout antigo mantido)
   const [vagaDetalhes, setVagaDetalhes] = useState(null);
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [detalhesLoading, setDetalhesLoading] = useState(false);
 
-  /* ========= Debounce de busca (300ms) ========= */
-  const [buscaQuery, setBuscaQuery] = useState('');
-  useEffect(() => {
-    const t = setTimeout(() => setBuscaQuery(filtros.busca.trim()), 300);
-    return () => clearTimeout(t);
-  }, [filtros.busca]);
+  // toast centralizado
+  const [toast, setToast] = useState({ open: false, type: 'success', title: '', message: '' });
+  const showToast = (type, title, message) => {
+    setToast({ open: true, type, title, message });
+    setTimeout(() => setToast(prev => ({ ...prev, open: false })), 3000);
+  };
 
   // Verificar autenticação e perfil
   useEffect(() => {
@@ -77,10 +75,55 @@ function Match_vaga() {
     }
   }, [navigate]);
 
-  // Carregar vagas compatíveis sempre que algo relevante mudar
+  // >>> favoritos persistentes — chave por usuário
+  const FAV_KEY = useMemo(
+    () => (freelancerData?.id ? `fav_vagas_${freelancerData.id}` : null),
+    [freelancerData?.id]
+  );
+
+  // Carregar favoritos do localStorage quando logar/alternar usuário
+  useEffect(() => {
+    if (!FAV_KEY) return;
+    try {
+      const raw = localStorage.getItem(FAV_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      setVagasSalvas(new Set(Array.isArray(arr) ? arr : []));
+    } catch {
+      setVagasSalvas(new Set());
+    }
+  }, [FAV_KEY]);
+
+  // Persistir favoritos no localStorage sempre que mudar
+  useEffect(() => {
+    if (!FAV_KEY) return;
+    try {
+      localStorage.setItem(FAV_KEY, JSON.stringify(Array.from(vagasSalvas)));
+    } catch {}
+  }, [vagasSalvas, FAV_KEY]);
+
+  // (Opcional) Sincronizar com backend, se existir este endpoint
+  const syncFavoritosComServidor = async (idsSet) => {
+    if (!freelancerData?.id) return;
+    try {
+      const token = localStorage.getItem('authToken');
+      await fetch(`http://localhost:3001/api/freelancers/${freelancerData.id}/favoritos`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({ vaga_ids: Array.from(idsSet) })
+      });
+      // Se o endpoint não existir, só ignora.
+    } catch {
+      // silencioso: persistência local já garante experiência.
+    }
+  };
+
+  // Carregar vagas e candidaturas sempre que algo relevante mudar
   useEffect(() => {
     if (!freelancerData?.id) return;
-    carregarVagas();
+    carregarVagasEStatus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     freelancerData?.id,
@@ -88,69 +131,109 @@ function Match_vaga() {
     filtros.nivel,
     filtros.modalidade,
     filtros.tipo,
-    buscaQuery,
     paginacao.pagina,
-    minMatch,
     aiOn,
     llmOn
   ]);
 
-  const carregarVagas = async () => {
+  /**
+   * Carrega as vagas e também descobre quais já foram candidatadas
+   * para que o selo "Candidatura enviada" apareça logo de cara.
+   */
+  const carregarVagasEStatus = async () => {
+    setLoading(true);
+    setError('');
+    const token = localStorage.getItem('authToken');
+
     try {
-      setLoading(true);
-      setError('');
-
-      const token = localStorage.getItem('authToken');
-
-      const queryParams = new URLSearchParams({
+      // 1) Vagas (com min_match fixo em 30%)
+      const qp = new URLSearchParams({
         pagina: String(paginacao.pagina),
         limite: '12',
+        min_match: '30',
       });
+      if (filtros.area)       qp.append('area', filtros.area);
+      if (filtros.nivel)      qp.append('nivel', filtros.nivel);
+      if (filtros.modalidade) qp.append('modalidade', filtros.modalidade);
+      if (filtros.tipo)       qp.append('tipo', filtros.tipo);
+      if (aiOn)               qp.append('ai', 'on');
+      if (llmOn)              qp.append('llm', 'on');
 
-      if (filtros.area)       queryParams.append('area', filtros.area);
-      if (filtros.nivel)      queryParams.append('nivel', filtros.nivel);
-      if (filtros.modalidade) queryParams.append('modalidade', filtros.modalidade);
-      if (filtros.tipo)       queryParams.append('tipo', filtros.tipo);
-      if (buscaQuery)         queryParams.append('busca', buscaQuery);
-      if (minMatch)           queryParams.append('min_match', String(minMatch));
-      if (aiOn)               queryParams.append('ai', 'on');
-      if (llmOn)              queryParams.append('llm', 'on');
-
-      const url = `http://localhost:3001/api/freelancers/${freelancerData.id}/matches?${queryParams.toString()}`;
-
-      const response = await fetch(url, {
+      const vagasUrl = `http://localhost:3001/api/freelancers/${freelancerData.id}/matches?${qp.toString()}`;
+      const vagasResp = await fetch(vagasUrl, {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : ''
         }
       });
+      const vagasJson = await vagasResp.json();
 
-      const result = await response.json();
-
-      if (response.ok && result.success) {
-        const total = result.data.total || 0;
-        const totalPaginas = result.data.totalPaginas || 1;
-        const paginaResp = result.data.pagina || 1;
-
-        setVagas(result.data.vagas || []);
-        setPaginacao(prev => {
-          // se a página atual for maior que o total, recua para a última válida
-          const paginaAjustada = Math.min(paginaResp, totalPaginas);
-          return {
-            ...prev,
-            pagina: paginaAjustada,
-            total,
-            totalPaginas
-          };
-        });
-      } else {
-        setError(result.message || 'Erro ao carregar vagas');
-        setVagas([]);
-        setPaginacao(prev => ({ ...prev, total: 0, totalPaginas: 1 }));
+      if (!vagasResp.ok || !vagasJson.success) {
+        throw new Error(vagasJson.message || 'Erro ao carregar vagas');
       }
+
+      const list = vagasJson.data.vagas || [];
+      setVagas(list);
+
+      // Ajusta paginação
+      const total = vagasJson.data.total || 0;
+      const totalPaginas = vagasJson.data.totalPaginas || 1;
+      const paginaResp = vagasJson.data.pagina || 1;
+      setPaginacao(prev => {
+        const paginaAjustada = Math.min(paginaResp, totalPaginas);
+        return { ...prev, pagina: paginaAjustada, total, totalPaginas };
+      });
+
+      // 2) Deriva "já candidatado" a partir de possíveis flags do próprio objeto vaga
+      const fromVagasFlags = new Set(
+        list
+          .filter(v =>
+            v.ja_candidatado === true ||
+            v.applied === true ||
+            v.candidatura_enviada === true ||
+            v.user_has_applied === true ||
+            (typeof v.candidatura_status === 'string' &&
+              ['enviada', 'pendente', 'aceita', 'rejeitada'].includes(v.candidatura_status.toLowerCase()))
+          )
+          .map(v => v.id)
+      );
+
+      // 3) (Opcional/robusto) Tenta buscar candidaturas do usuário para assegurar o status
+      let fromApi = new Set();
+      try {
+        const cUrl = `http://localhost:3001/api/freelancers/${freelancerData.id}/candidaturas`;
+        const cResp = await fetch(cUrl, {
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': token ? `Bearer ${token}` : ''
+          }
+        });
+
+        if (cResp.ok) {
+          const cJson = await cResp.json();
+          if (Array.isArray(cJson.data)) {
+            fromApi = new Set(
+              cJson.data
+                .filter(item => {
+                  const st = (item.status || '').toString().toLowerCase();
+                  return st === '' || ['enviada', 'pendente', 'em_analise', 'aceita', 'rejeitada'].includes(st);
+                })
+                .map(item => item.vaga_id)
+            );
+          } else if (cJson.data && Array.isArray(cJson.data.vaga_ids)) {
+            fromApi = new Set(cJson.data.vaga_ids);
+          }
+        }
+      } catch {
+        // silencia: endpoint pode não existir
+      }
+
+      // 4) Unimos as duas fontes
+      const union = new Set([...fromVagasFlags, ...fromApi]);
+      setVagasCandidatadas(union);
     } catch (e) {
-      console.error('Erro ao carregar vagas:', e);
-      setError('Erro de conexão. Tente novamente.');
+      console.error('Erro ao carregar vagas/status:', e);
+      setError(e.message || 'Erro de conexão. Tente novamente.');
       setVagas([]);
       setPaginacao(prev => ({ ...prev, total: 0, totalPaginas: 1 }));
     } finally {
@@ -188,19 +271,21 @@ function Match_vaga() {
             ? { ...vaga, candidaturas: (vaga.candidaturas || 0) + 1 }
             : vaga
         ));
+        setVagasCandidatadas(prev => new Set(prev).add(vagaCandidatura.id));
 
-        alert('Candidatura enviada com sucesso! A empresa será notificada.');
+        showToast('success', 'Candidatura enviada', 'A empresa será notificada.');
         setModalCandidatura(false);
         setVagaCandidatura(null);
         setMensagemCandidatura('');
       } else {
         if (result.message === 'Você já se candidatou a esta vaga') {
-          alert('⚠️ Você já se candidatou a esta vaga anteriormente.');
+          setVagasCandidatadas(prev => new Set(prev).add(vagaCandidatura.id));
+          showToast('warning', 'Candidatura já enviada', 'Você já se candidatou anteriormente.');
         } else if (result.message === 'Esta vaga não está mais ativa para candidaturas') {
-          alert('⚠️ Esta vaga não está mais disponível para candidaturas.');
-          setVagas(prev => prev.filter(vaga => vaga.id !== vagaCandidatura.id));
+          showToast('warning', 'Vaga indisponível', 'Esta vaga não está aceitando candidaturas.');
+          setVagas(prev => prev.filter(v => v.id !== vagaCandidatura.id));
         } else {
-          alert(`❌ Erro ao enviar candidatura: ${result.message}`);
+          showToast('error', 'Erro ao enviar', result.message || 'Tente novamente.');
         }
 
         setModalCandidatura(false);
@@ -209,26 +294,28 @@ function Match_vaga() {
       }
     } catch (error) {
       console.error('Erro ao se candidatar:', error);
-      alert('Erro de conexão. Tente novamente.');
+      showToast('error', 'Erro de conexão', 'Tente novamente.');
     } finally {
       setCandidaturaLoading(false);
     }
   };
 
-  // Salvar vaga
+  // Salvar vaga (favoritar) — persiste localmente e tenta sync no backend
   const handleSalvarVaga = (vaga) => {
     const novasVagasSalvas = new Set(vagasSalvas);
     if (vagasSalvas.has(vaga.id)) {
       novasVagasSalvas.delete(vaga.id);
-      alert(`Vaga "${vaga.titulo}" removida dos favoritos!`);
+      showToast('success', 'Removida dos favoritos', `Vaga "${vaga.titulo}" removida.`);
     } else {
       novasVagasSalvas.add(vaga.id);
-      alert(`Vaga "${vaga.titulo}" salva nos favoritos!`);
+      showToast('success', 'Salva nos favoritos', `Vaga "${vaga.titulo}" salva.`);
     }
     setVagasSalvas(novasVagasSalvas);
+    // tentativa de sync (opcional)
+    syncFavoritosComServidor(novasVagasSalvas);
   };
 
-  // Ver detalhes (mantém layout antigo) — injeta match_pct do card
+  // Ver detalhes — injeta match_pct do card
   const handleVerDetalhes = async (vaga) => {
     setDetalhesLoading(true);
     setModalDetalhes(true);
@@ -286,6 +373,34 @@ function Match_vaga() {
     return colors[nivel] || 'bg-gray-100 text-gray-800';
   };
 
+  // ===== PRIORIDADE: filtros > favoritos > match =====
+  const norm = (s) =>
+    (s ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+
+  const passaFiltros = (v) => {
+    if (filtros.area && norm(v.area_atuacao) !== norm(filtros.area)) return false;
+    if (filtros.nivel && norm(v.nivel_experiencia) !== norm(filtros.nivel)) return false;
+    if (filtros.modalidade && norm(v.modalidade_trabalho) !== norm(filtros.modalidade)) return false;
+    if (filtros.tipo && norm(v.tipo_contrato) !== norm(filtros.tipo)) return false;
+    return true;
+  };
+
+  const vagasOrdenadas = useMemo(() => {
+    const aposFiltro = vagas.filter(passaFiltros);
+
+    aposFiltro.sort((a, b) => {
+      const favA = vagasSalvas.has(a.id) ? 1 : 0;
+      const favB = vagasSalvas.has(b.id) ? 1 : 0;
+      if (favA !== favB) return favB - favA; // favoritos primeiro
+
+      const mA = typeof a.match_pct === 'number' ? a.match_pct : 0;
+      const mB = typeof b.match_pct === 'number' ? b.match_pct : 0;
+      return mB - mA; // match desc
+    });
+
+    return aposFiltro;
+  }, [vagas, vagasSalvas, filtros.area, filtros.nivel, filtros.modalidade, filtros.tipo]);
+
   // Loading inicial
   if (loading && vagas.length === 0) {
     return (
@@ -297,9 +412,6 @@ function Match_vaga() {
       </div>
     );
   }
-
-  // Sem filtro local — o backend já devolve filtrado/ordenado
-  const vagasFiltradas = vagas;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -413,32 +525,11 @@ function Match_vaga() {
               </select>
             </div>
 
-            {/* Busca */}
-            <div className="xl:col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Busca
-              </label>
-              <input
-                type="text"
-                value={filtros.busca}
-                onChange={(e) => {
-                  setFiltros(prev => ({ ...prev, busca: e.target.value }));
-                  setPaginacao(prev => ({ ...prev, pagina: 1 }));
-                }}
-                placeholder="Busque por título, empresa, skills ou localização..."
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500"
-              />
-              {filtros.busca && (
-                <p className="text-xs text-gray-500 mt-1">Aplicando após ~300ms…</p>
-              )}
-            </div>
-
             {/* Limpar */}
             <div className="flex items-end">
               <button
                 onClick={() => {
-                  setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', busca: '' });
-                  setMinMatch(30);
+                  setFiltros({ area: '', nivel: '', modalidade: '', tipo: '' });
                   setAiOn(true);
                   setLlmOn(false);
                   setPaginacao(prev => ({ ...prev, pagina: 1 }));
@@ -450,62 +541,39 @@ function Match_vaga() {
             </div>
           </div>
 
-          {/* Linha de controles extra */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Mínimo de Match */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Mínimo de Match: <span className="text-blue-700 font-semibold">{minMatch}%</span>
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="100"
-                value={minMatch}
-                onChange={(e) => {
-                  setMinMatch(parseInt(e.target.value, 10));
-                  setPaginacao(prev => ({ ...prev, pagina: 1 }));
-                }}
-                className="w-full"
-              />
-              <p className="text-xs text-gray-500 mt-1">Exibe somente vagas com match ≥ {minMatch}%</p>
+          {/* Controles de IA (ocultos por padrão) */}
+          {SHOW_AI_CONTROLS && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="flex items-end">
+                <label className="inline-flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={aiOn}
+                    onChange={(e) => {
+                      setAiOn(e.target.checked);
+                      setPaginacao(prev => ({ ...prev, pagina: 1 }));
+                    }}
+                    className="h-5 w-5 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">Usar IA (embeddings)</span>
+                </label>
+              </div>
+              <div className="flex items-end">
+                <label className="inline-flex items-center space-x-3">
+                  <input
+                    type="checkbox"
+                    checked={llmOn}
+                    onChange={(e) => {
+                      setLlmOn(e.target.checked);
+                      setPaginacao(prev => ({ ...prev, pagina: 1 }));
+                    }}
+                    className="h-5 w-5 text-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">Usar re-rank por LLM</span>
+                </label>
+              </div>
             </div>
-
-            {/* IA embeddings + LLM (ocultos do usuário final) */}
-            {SHOW_AI_CONTROLS && (
-              <>
-                <div className="flex items-end">
-                  <label className="inline-flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={aiOn}
-                      onChange={(e) => {
-                        setAiOn(e.target.checked);
-                        setPaginacao(prev => ({ ...prev, pagina: 1 }));
-                      }}
-                      className="h-5 w-5 text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700">Usar IA (embeddings)</span>
-                  </label>
-                </div>
-
-                <div className="flex items-end">
-                  <label className="inline-flex items-center space-x-3">
-                    <input
-                      type="checkbox"
-                      checked={llmOn}
-                      onChange={(e) => {
-                        setLlmOn(e.target.checked);
-                        setPaginacao(prev => ({ ...prev, pagina: 1 }));
-                      }}
-                      className="h-5 w-5 text-blue-600"
-                    />
-                    <span className="text-sm text-gray-700">Usar re-rank por LLM</span>
-                  </label>
-                </div>
-              </>
-            )}
-          </div>
+          )}
         </div>
 
         {/* Erros */}
@@ -513,7 +581,7 @@ function Match_vaga() {
           <div className="bg-red-50 border border-red-200 p-4 rounded-lg mb-6">
             <p className="text-red-700">{error}</p>
             <button
-              onClick={carregarVagas}
+              onClick={carregarVagasEStatus}
               className="mt-2 text-red-600 hover:text-red-800 underline"
             >
               Tentar novamente
@@ -522,17 +590,16 @@ function Match_vaga() {
         )}
 
         {/* Lista de vagas */}
-        {vagasFiltradas.length === 0 ? (
+        {vagasOrdenadas.length === 0 ? (
           <div className="bg-white p-8 rounded-lg shadow-md text-center">
             <p className="text-gray-600 mb-4">
-              {filtros.busca || filtros.area || filtros.nivel || filtros.modalidade || filtros.tipo || minMatch > 0
+              {filtros.area || filtros.nivel || filtros.modalidade || filtros.tipo
                 ? 'Nenhuma vaga encontrada com os filtros selecionados.'
                 : 'Nenhuma vaga disponível no momento.'}
             </p>
             <button
               onClick={() => {
-                setFiltros({ area: '', nivel: '', modalidade: '', tipo: '', busca: '' });
-                setMinMatch(30);
+                setFiltros({ area: '', nivel: '', modalidade: '', tipo: '' });
                 setAiOn(true);
                 setLlmOn(false);
                 setPaginacao(prev => ({ ...prev, pagina: 1 }));
@@ -544,7 +611,7 @@ function Match_vaga() {
           </div>
         ) : (
           <div className="space-y-6">
-            {vagasFiltradas.map((vaga) => {
+            {vagasOrdenadas.map((vaga) => {
               const matchPercentual = typeof vaga.match_pct === 'number' ? vaga.match_pct : 0;
 
               return (
@@ -605,7 +672,7 @@ function Match_vaga() {
                           {vaga.nivel_experiencia || '-'}
                         </span>
                         <span className="flex items-center">
-                          <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="w-4 h-4 mr-2 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                             <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
                           </svg>
                           {vaga.tipo_contrato || '-'}
@@ -651,14 +718,26 @@ function Match_vaga() {
                           >
                             Ver Detalhes
                           </button>
+
+                          {vagasCandidatadas.has(vaga.id) && (
+                            <span className="px-3 py-2 bg-green-50 text-green-700 border border-green-200 rounded-lg text-xs font-medium self-center">
+                              Candidatura enviada
+                            </span>
+                          )}
+
                           <button
                             onClick={() => {
                               setVagaCandidatura(vaga);
                               setModalCandidatura(true);
                             }}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                            disabled={vagasCandidatadas.has(vaga.id)}
+                            className={`px-4 py-2 rounded-lg transition-colors text-sm ${
+                              vagasCandidatadas.has(vaga.id)
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
                           >
-                            Candidatar-se
+                            {vagasCandidatadas.has(vaga.id) ? 'Já candidatado' : 'Candidatar-se'}
                           </button>
                         </div>
                       </div>
@@ -697,7 +776,7 @@ function Match_vaga() {
           </div>
         )}
 
-        {/* Modal de Detalhes (original) */}
+        {/* Modal de Detalhes */}
         {modalDetalhes && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
@@ -727,6 +806,8 @@ function Match_vaga() {
                         </div>
                       </div>
                     </div>
+                    {/* FIX: fechar com </div> (não self-closing) */}
+                    {/* botão fechar */}
                     <button
                       onClick={() => {
                         setModalDetalhes(false);
@@ -784,36 +865,11 @@ function Match_vaga() {
                         </div>
                       )}
 
-                      {/* Skills */}
-                      {Array.isArray(vagaDetalhes.skills_obrigatorias) && vagaDetalhes.skills_obrigatorias.length > 0 && (
-                        <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills Obrigatórias</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {vagaDetalhes.skills_obrigatorias.map((skill, index) => (
-                              <span key={index} className="bg-red-100 text-red-800 px-3 py-1 rounded-full text-sm font-medium">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {Array.isArray(vagaDetalhes.skills_desejaveis) && vagaDetalhes.skills_desejaveis.length > 0 && (
-                        <div className="mb-6">
-                          <h3 className="text-lg font-semibold text-gray-900 mb-3">Skills Desejáveis</h3>
-                          <div className="flex flex-wrap gap-2">
-                            {vagaDetalhes.skills_desejaveis.map((skill, index) => (
-                              <span key={index} className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm">
-                                {skill}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
                       {/* Informações da Vaga */}
                       <div className="bg-gray-50 rounded-lg p-4 mb-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Vaga</h3>
 
+                        {/* FIX: classe correta md:grid-cols-2 */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Salário</label>
@@ -899,9 +955,14 @@ function Match_vaga() {
                               setModalDetalhes(false);
                               setModalCandidatura(true);
                             }}
-                            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                            disabled={vagasCandidatadas.has(vagaDetalhes.id)}
+                            className={`w-full px-4 py-3 rounded-lg transition-colors font-medium ${
+                              vagasCandidatadas.has(vagaDetalhes.id)
+                                ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
+                            }`}
                           >
-                            Candidatar-se à Vaga
+                            {vagasCandidatadas.has(vagaDetalhes.id) ? 'Já candidatado' : 'Candidatar-se à Vaga'}
                           </button>
 
                           <button
@@ -1034,6 +1095,44 @@ function Match_vaga() {
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors"
                 >
                   Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Toast centralizado */}
+        {toast.open && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/30" />
+            <div className="relative w-full max-w-md rounded-2xl shadow-2xl bg-white border p-5">
+              <div className="flex items-start gap-3">
+                <div
+                  className={`mt-0.5 inline-flex h-8 w-8 items-center justify-center rounded-full ${
+                    toast.type === 'success'
+                      ? 'bg-green-100 text-green-700'
+                      : toast.type === 'warning'
+                      ? 'bg-yellow-100 text-yellow-700'
+                      : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {toast.type === 'success' ? '✓' : toast.type === 'warning' ? '!' : '✕'}
+                </div>
+
+                <div className="flex-1">
+                  <h4 className="font-semibold text-gray-900">{toast.title}</h4>
+                  {toast.message && <p className="text-sm text-gray-600 mt-0.5">{toast.message}</p>}
+                </div>
+
+                <button
+                  onClick={() => setToast(prev => ({ ...prev, open: false }))}
+                  className="text-gray-400 hover:text-gray-600"
+                  aria-label="Fechar"
+                  title="Fechar"
+                >
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                    <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
                 </button>
               </div>
             </div>
