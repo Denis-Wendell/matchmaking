@@ -272,12 +272,7 @@ function Perfil_freelancer() {
               >
                 Editar Perfil
               </button>
-              <button
-                onClick={handleLogout}
-                className="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-              >
-                Sair
-              </button>
+
             </div>
           </div>
         </div>

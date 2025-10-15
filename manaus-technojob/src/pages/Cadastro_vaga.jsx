@@ -1,79 +1,79 @@
 // pages/Cadastro_vaga.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Importando os componentes que você criou
 import FormField from '../components/FormField';
 import Button from '../components/Button';
 import Card from '../components/Card';
 
 function CadastroVaga() {
   const navigate = useNavigate();
-  
+
+  // ===== TOAST =====
+  const [toast, setToast] = useState({ open: false, type: 'success', title: '', message: '' });
+  const showToast = (type, title, message = '') => {
+    setToast({ open: true, type, title, message });
+    setTimeout(() => setToast(prev => ({ ...prev, open: false })), 3000);
+  };
+
+  // ===== MODAL DE SUCESSO =====
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
+
   // ===== ESTADOS DO FORMULÁRIO =====
-  // Estado para armazenar todos os dados do formulário
   const [formData, setFormData] = useState({
-    // --- Informações Básicas ---
-    titulo: '',                     // titulo (obrigatório)
-    area_atuacao: '',              // area_atuacao (obrigatório)
-    nivel_experiencia: '',         // nivel_experiencia (obrigatório)
-    tipo_contrato: '',             // tipo_contrato (obrigatório)
-    modalidade_trabalho: '',       // modalidade_trabalho (obrigatório)
-    localizacao_texto: '',         // localizacao_texto (obrigatório)
-    quantidade_vagas: '1',         // quantidade_vagas (opcional, padrão 1)
-    
-    // --- Remuneração e Benefícios ---
-    salario_minimo: '',            // salario_minimo (opcional)
-    salario_maximo: '',            // salario_maximo (opcional)
-    moeda: 'BRL',                  // moeda (padrão BRL)
-    beneficios_oferecidos: '',     // beneficios_oferecidos (opcional)
-    
-    // --- Descrição da Vaga ---
-    descricao_geral: '',           // descricao_geral (obrigatório)
-    principais_responsabilidades: '', // principais_responsabilidades (obrigatório)
-    
+    // --- Básico ---
+    titulo: '',
+    area_atuacao: '',
+    nivel_experiencia: '',
+    tipo_contrato: '',
+    modalidade_trabalho: '',
+    localizacao_texto: '',
+    quantidade_vagas: '1',
+    // --- Remuneração / Benefícios ---
+    salario_minimo: '',
+    salario_maximo: '',
+    moeda: 'BRL',
+    beneficios_oferecidos: '',
+    // --- Descrição ---
+    descricao_geral: '',
+    principais_responsabilidades: '',
     // --- Requisitos ---
-    requisitos_obrigatorios: '',   // requisitos_obrigatorios (obrigatório)
-    requisitos_desejados: '',      // requisitos_desejados (opcional)
-    habilidades_tecnicas: '',      // habilidades_tecnicas (obrigatório)
-    habilidades_comportamentais: '', // habilidades_comportamentais (opcional)
-    formacao_minima: '',           // formacao_minima (opcional)
-    experiencia_minima: '',        // experiencia_minima (opcional)
-    idiomas_necessarios: '',       // idiomas_necessarios (opcional)
-    certificacoes_desejadas: '',   // certificacoes_desejadas (opcional)
-    
-    // --- Informações Adicionais ---
-    horario_trabalho: '',          // horario_trabalho (opcional)
-    data_inicio_desejada: '',      // data_inicio_desejada (opcional)
-    data_limite_inscricoes: '',    // data_limite_inscricoes (opcional)
-    processo_seletivo: '',         // processo_seletivo (opcional)
-    palavras_chave: '',            // palavras_chave (opcional)
-    
-    // --- Informações de Contato ---
-    contato_nome: '',              // contato_nome (obrigatório)
-    contato_email: '',             // contato_email (obrigatório)
-    contato_telefone: '',          // contato_telefone (opcional)
-    observacoes: '',               // observacoes (opcional)
-    
-    // --- Skills como arrays ---
-    skills_obrigatorias_text: '',  // Para input de texto
-    skills_desejaveis_text: '',    // Para input de texto
-    areas_relacionadas_text: ''    // Para input de texto
+    requisitos_obrigatorios: '',
+    requisitos_desejados: '',
+    habilidades_tecnicas: '',
+    habilidades_comportamentais: '',
+    formacao_minima: '',
+    experiencia_minima: '',
+    idiomas_necessarios: '',
+    certificacoes_desejadas: '',
+    // --- Info Extra ---
+    horario_trabalho: '',
+    data_inicio_desejada: '',
+    data_limite_inscricoes: '',
+    processo_seletivo: '',
+    palavras_chave: '',
+    // --- Contato ---
+    contato_nome: '',
+    contato_email: '',
+    contato_telefone: '',
+    observacoes: '',
+    // --- Inputs de listas ---
+    skills_obrigatorias_text: '',
+    skills_desejaveis_text: '',
+    areas_relacionadas_text: ''
   });
 
-  // Estados de controle
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [empresaData, setEmpresaData] = useState(null);
 
-  // ===== VERIFICAÇÃO DE AUTENTICAÇÃO =====
+  // ===== AUTENTICAÇÃO =====
   useEffect(() => {
-    // Verificar se usuário está logado e é uma empresa
     const isLoggedIn = localStorage.getItem('isLoggedIn');
     const userType = localStorage.getItem('userType');
     const empresaDataStored = localStorage.getItem('empresaData');
 
     if (!isLoggedIn || userType !== 'empresa') {
-      alert('Acesso restrito a empresas. Faça login como empresa.');
+      showToast('warning', 'Acesso restrito', 'Faça login como empresa para cadastrar vagas.');
       navigate('/login');
       return;
     }
@@ -82,15 +82,14 @@ function CadastroVaga() {
       try {
         const parsedData = JSON.parse(empresaDataStored);
         setEmpresaData(parsedData);
-        
-        // Pré-preencher dados da empresa
         setFormData(prev => ({
           ...prev,
           contato_nome: parsedData.responsavel_nome || '',
           contato_email: parsedData.email_corporativo || ''
         }));
-      } catch (error) {
-        console.error('Erro ao carregar dados da empresa:', error);
+      } catch (err) {
+        console.error('Erro ao carregar dados da empresa:', err);
+        showToast('error', 'Erro', 'Falha ao carregar dados da empresa.');
         navigate('/login');
       }
     } else {
@@ -98,115 +97,83 @@ function CadastroVaga() {
     }
   }, [navigate]);
 
-  // ===== FUNÇÃO PARA ATUALIZAR DADOS =====
+  // ===== HANDLERS =====
   const handleChange = (field) => (e) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: e.target.value
-    }));
-    
-    // Limpar erro se existir
-    if (errors[field]) {
-      setErrors(prev => ({ 
-        ...prev, 
-        [field]: ''
-      }));
-    }
+    setFormData(prev => ({ ...prev, [field]: e.target.value }));
+    if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
   };
 
-  // ===== FUNÇÃO DE VALIDAÇÃO =====
   const validateForm = () => {
     const newErrors = {};
+    if (!formData.titulo.trim()) newErrors.titulo = 'Título da vaga é obrigatório';
+    if (!formData.area_atuacao) newErrors.area_atuacao = 'Área de atuação é obrigatória';
+    if (!formData.nivel_experiencia) newErrors.nivel_experiencia = 'Nível de experiência é obrigatório';
+    if (!formData.tipo_contrato) newErrors.tipo_contrato = 'Tipo de contrato é obrigatório';
+    if (!formData.modalidade_trabalho) newErrors.modalidade_trabalho = 'Modalidade de trabalho é obrigatória';
+    if (!formData.localizacao_texto.trim()) newErrors.localizacao_texto = 'Localização é obrigatória';
 
-    // Campos obrigatórios do backend
-    if (!formData.titulo.trim()) {
-      newErrors.titulo = 'Título da vaga é obrigatório';
-    }
-    
-    if (!formData.area_atuacao) {
-      newErrors.area_atuacao = 'Área de atuação é obrigatória';
-    }
-    
-    if (!formData.nivel_experiencia) {
-      newErrors.nivel_experiencia = 'Nível de experiência é obrigatório';
-    }
-    
-    if (!formData.tipo_contrato) {
-      newErrors.tipo_contrato = 'Tipo de contrato é obrigatório';
-    }
-    
-    if (!formData.modalidade_trabalho) {
-      newErrors.modalidade_trabalho = 'Modalidade de trabalho é obrigatória';
-    }
-    
-    if (!formData.localizacao_texto.trim()) {
-      newErrors.localizacao_texto = 'Localização é obrigatória';
-    }
-    
     if (!formData.descricao_geral.trim()) {
       newErrors.descricao_geral = 'Descrição geral da vaga é obrigatória';
     } else if (formData.descricao_geral.trim().length < 20) {
       newErrors.descricao_geral = 'Descrição deve ter pelo menos 20 caracteres';
     }
-    
-    if (!formData.principais_responsabilidades.trim()) {
+
+    if (!formData.principais_responsabilidades.trim())
       newErrors.principais_responsabilidades = 'Principais responsabilidades são obrigatórias';
-    }
-    
-    if (!formData.requisitos_obrigatorios.trim()) {
+    if (!formData.requisitos_obrigatorios.trim())
       newErrors.requisitos_obrigatorios = 'Requisitos obrigatórios são necessários';
-    }
-    
-    if (!formData.habilidades_tecnicas.trim()) {
+    if (!formData.habilidades_tecnicas.trim())
       newErrors.habilidades_tecnicas = 'Habilidades técnicas são obrigatórias';
-    }
-    
-    if (!formData.contato_nome.trim()) {
-      newErrors.contato_nome = 'Nome do contato é obrigatório';
-    }
-    
+
+    if (!formData.contato_nome.trim()) newErrors.contato_nome = 'Nome do contato é obrigatório';
     if (!formData.contato_email.trim()) {
       newErrors.contato_email = 'Email de contato é obrigatório';
     } else if (!/\S+@\S+\.\S+/.test(formData.contato_email)) {
       newErrors.contato_email = 'Email inválido';
     }
 
-    if (!formData.skills_obrigatorias_text.trim()) {
+    if (!formData.skills_obrigatorias_text.trim())
       newErrors.skills_obrigatorias_text = 'Skills obrigatórias são necessárias';
-    }
 
     return newErrors;
   };
 
-  // ===== FUNÇÃO PARA PROCESSAR SKILLS EM ARRAYS =====
   const processSkillsToArray = (skillsText) => {
     if (!skillsText.trim()) return [];
-    return skillsText.split(',').map(skill => skill.trim()).filter(skill => skill.length > 0);
+    return skillsText.split(',').map(s => s.trim()).filter(Boolean);
   };
 
-  // ===== FUNÇÃO PARA ENVIAR FORMULÁRIO =====
+  const resetForm = () => {
+    setFormData({
+      titulo: '', area_atuacao: '', nivel_experiencia: '', tipo_contrato: '',
+      modalidade_trabalho: '', localizacao_texto: '', quantidade_vagas: '1',
+      salario_minimo: '', salario_maximo: '', moeda: 'BRL', beneficios_oferecidos: '',
+      descricao_geral: '', principais_responsabilidades: '', requisitos_obrigatorios: '',
+      requisitos_desejados: '', habilidades_tecnicas: '', habilidades_comportamentais: '',
+      formacao_minima: '', experiencia_minima: '', idiomas_necessarios: '', certificacoes_desejadas: '',
+      horario_trabalho: '', data_inicio_desejada: '', data_limite_inscricoes: '',
+      processo_seletivo: '', palavras_chave: '',
+      contato_nome: empresaData?.responsavel_nome || '',
+      contato_email: empresaData?.email_corporativo || '',
+      contato_telefone: '', observacoes: '',
+      skills_obrigatorias_text: '', skills_desejaveis_text: '', areas_relacionadas_text: ''
+    });
+    setErrors({});
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validar formulário
     const validationErrors = validateForm();
-    
     if (Object.keys(validationErrors).length > 0) {
       setErrors(validationErrors);
-      
-      // Scroll para o primeiro erro
       const firstErrorField = document.querySelector('.border-red-500');
-      if (firstErrorField) {
-        firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      
+      if (firstErrorField) firstErrorField.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      showToast('warning', 'Revise os campos', 'Há pendências no formulário.');
       return;
     }
 
     setLoading(true);
-    
     try {
-      // Preparar dados para a API
       const dadosVaga = {
         titulo: formData.titulo.trim(),
         area_atuacao: formData.area_atuacao,
@@ -243,70 +210,35 @@ function CadastroVaga() {
         areas_relacionadas: processSkillsToArray(formData.areas_relacionadas_text)
       };
 
-      console.log('📋 Enviando dados para API:', dadosVaga);
-
-      // Fazer chamada para a API
       const token = localStorage.getItem('authToken');
-      
       const response = await fetch('http://localhost:3001/api/vagas', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(dadosVaga)
       });
-
       const result = await response.json();
 
       if (response.ok && result.success) {
-        alert('✅ Vaga criada com sucesso!');
-        
-        // Redirecionar para minhas vagas ou limpar formulário
-        const resetForm = window.confirm('Deseja criar uma nova vaga ou ver suas vagas publicadas?\n\nOK = Nova vaga\nCancelar = Ver vagas publicadas');
-        
-        if (resetForm) {
-          // Limpar formulário
-          setFormData({
-            titulo: '', area_atuacao: '', nivel_experiencia: '', tipo_contrato: '',
-            modalidade_trabalho: '', localizacao_texto: '', quantidade_vagas: '1',
-            salario_minimo: '', salario_maximo: '', moeda: 'BRL', beneficios_oferecidos: '',
-            descricao_geral: '', principais_responsabilidades: '', requisitos_obrigatorios: '',
-            requisitos_desejados: '', habilidades_tecnicas: '', habilidades_comportamentais: '',
-            formacao_minima: '', experiencia_minima: '', idiomas_necessarios: '', certificacoes_desejadas: '',
-            horario_trabalho: '', data_inicio_desejada: '', data_limite_inscricoes: '',
-            processo_seletivo: '', palavras_chave: '',
-            contato_nome: empresaData?.responsavel_nome || '',
-            contato_email: empresaData?.email_corporativo || '',
-            contato_telefone: '', observacoes: '',
-            skills_obrigatorias_text: '', skills_desejaveis_text: '', areas_relacionadas_text: ''
-          });
-          setErrors({});
-        } else {
-          // Redirecionar para minhas vagas (você precisa criar esta rota)
-          navigate('/minhas-vagas');
-        }
-        
+        showToast('success', 'Vaga publicada!', 'Sua vaga foi criada com sucesso.');
+        // abre modal com ações
+        setSuccessModalOpen(true);
       } else {
-        // Erro da API
-        console.error('❌ Erro da API:', result);
-        
+        console.error('Erro da API:', result);
         if (result.errors && Array.isArray(result.errors)) {
-          alert(`❌ Erro ao criar vaga:\n\n${result.errors.join('\n')}`);
+          showToast('error', 'Erro ao criar vaga', result.errors.join(' • '));
         } else {
-          alert(`❌ Erro ao criar vaga: ${result.message || 'Erro desconhecido'}`);
+          showToast('error', 'Erro ao criar vaga', result.message || 'Tente novamente.');
         }
       }
-      
-    } catch (error) {
-      console.error('❌ Erro na requisição:', error);
-      alert('❌ Erro de conexão. Verifique sua internet e tente novamente.');
+    } catch (err) {
+      console.error('Erro na requisição:', err);
+      showToast('error', 'Erro de conexão', 'Verifique sua internet e tente novamente.');
     } finally {
       setLoading(false);
     }
   };
 
-  // ===== DADOS PARA SELECTS (alinhados com os ENUMs do banco) =====
+  // ===== SELECTS =====
   const areasAtuacao = [
     { value: 'Tecnologia', label: 'Tecnologia' },
     { value: 'Design Gráfico', label: 'Design Gráfico' },
@@ -360,7 +292,6 @@ function CadastroVaga() {
     { value: 'EUR', label: 'Euro (€)' }
   ];
 
-  // Se não há dados da empresa, mostrar loading
   if (!empresaData) {
     return (
       <div className="min-h-screen bg-gray-50 py-8">
@@ -373,27 +304,18 @@ function CadastroVaga() {
     );
   }
 
-  // ===== RENDERIZAÇÃO DO COMPONENTE =====
+  // ===== UI =====
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="max-w-2xl lg:max-w-4xl xl:max-w-5xl 2xl:max-w-6xl mx-auto px-4">
-        {/* HEADER DO FORMULÁRIO */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Cadastrar Nova Vaga
-          </h1>
-          <p className="text-gray-600">
-            Publique sua vaga e encontre os melhores candidatos
-          </p>
-          <p className="text-sm text-blue-600 mt-2">
-            Logado como: {empresaData.nome}
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Cadastrar Nova Vaga</h1>
+          <p className="text-gray-600">Publique sua vaga e encontre os melhores candidatos</p>
+          <p className="text-sm text-blue-600 mt-2">Logado como: {empresaData.nome}</p>
         </div>
 
-        {/* FORMULÁRIO PRINCIPAL */}
         <form onSubmit={handleSubmit} className="space-y-8">
-          
-          {/* ===== SEÇÃO 1: INFORMAÇÕES BÁSICAS ===== */}
+          {/* ===== SEÇÃO 1: BÁSICO ===== */}
           <Card title="Informações Básicas" className="fade-in">
             <div className="grid grid-cols-1 gap-4 mb-4">
               <FormField
@@ -405,7 +327,7 @@ function CadastroVaga() {
                 required
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
               <FormField
                 label="Área de Atuação"
@@ -417,7 +339,6 @@ function CadastroVaga() {
                 error={errors.area_atuacao}
                 required
               />
-              
               <FormField
                 label="Nível de Experiência"
                 type="select"
@@ -428,7 +349,6 @@ function CadastroVaga() {
                 error={errors.nivel_experiencia}
                 required
               />
-              
               <FormField
                 label="Tipo de Contrato"
                 type="select"
@@ -439,7 +359,6 @@ function CadastroVaga() {
                 error={errors.tipo_contrato}
                 required
               />
-              
               <FormField
                 label="Modalidade de Trabalho"
                 type="select"
@@ -450,7 +369,6 @@ function CadastroVaga() {
                 error={errors.modalidade_trabalho}
                 required
               />
-              
               <FormField
                 label="Localização"
                 value={formData.localizacao_texto}
@@ -459,7 +377,6 @@ function CadastroVaga() {
                 error={errors.localizacao_texto}
                 required
               />
-
               <FormField
                 label="Quantidade de Vagas"
                 type="number"
@@ -471,7 +388,7 @@ function CadastroVaga() {
             </div>
           </Card>
 
-          {/* ===== SEÇÃO 2: REMUNERAÇÃO E BENEFÍCIOS ===== */}
+          {/* ===== SEÇÃO 2: REMUNERAÇÃO ===== */}
           <Card title="Remuneração e Benefícios" className="fade-in">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
               <FormField
@@ -483,7 +400,6 @@ function CadastroVaga() {
                 min="0"
                 step="0.01"
               />
-              
               <FormField
                 label="Salário Máximo"
                 type="number"
@@ -493,7 +409,6 @@ function CadastroVaga() {
                 min="0"
                 step="0.01"
               />
-              
               <FormField
                 label="Moeda"
                 type="select"
@@ -501,19 +416,18 @@ function CadastroVaga() {
                 onChange={handleChange('moeda')}
                 options={moedas}
               />
-              
-              <div className="hidden xl:block"></div>
+              <div className="hidden xl:block" />
             </div>
-            
+
             <FormField
               label="Benefícios Oferecidos"
               value={formData.beneficios_oferecidos}
               onChange={handleChange('beneficios_oferecidos')}
-              placeholder="Vale alimentação, plano de saúde, home office, flexibilidade de horário..."
+              placeholder="Vale refeição, plano de saúde, home office, flexibilidade de horário..."
             />
           </Card>
 
-          {/* ===== SEÇÃO 3: DESCRIÇÃO DA VAGA ===== */}
+          {/* ===== SEÇÃO 3: DESCRIÇÃO ===== */}
           <Card title="Descrição da Vaga" className="fade-in">
             <FormField
               label="Descrição Geral da Vaga (mínimo 20 caracteres)"
@@ -525,7 +439,6 @@ function CadastroVaga() {
               error={errors.descricao_geral}
               required
             />
-            
             <FormField
               label="Principais Responsabilidades"
               type="textarea"
@@ -551,7 +464,6 @@ function CadastroVaga() {
                 error={errors.requisitos_obrigatorios}
                 required
               />
-              
               <FormField
                 label="Requisitos Desejados"
                 type="textarea"
@@ -560,7 +472,6 @@ function CadastroVaga() {
                 placeholder="Conhecimentos extras que seriam um diferencial..."
                 rows={3}
               />
-              
               <FormField
                 label="Habilidades Técnicas"
                 type="textarea"
@@ -571,7 +482,6 @@ function CadastroVaga() {
                 error={errors.habilidades_tecnicas}
                 required
               />
-              
               <FormField
                 label="Habilidades Comportamentais"
                 type="textarea"
@@ -581,7 +491,7 @@ function CadastroVaga() {
                 rows={3}
               />
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 label="Formação Mínima"
@@ -591,21 +501,18 @@ function CadastroVaga() {
                 options={formacoesMinimas}
                 placeholder="Selecione"
               />
-              
               <FormField
                 label="Experiência Mínima"
                 value={formData.experiencia_minima}
                 onChange={handleChange('experiencia_minima')}
                 placeholder="2 anos em desenvolvimento web"
               />
-              
               <FormField
                 label="Idiomas Necessários"
                 value={formData.idiomas_necessarios}
                 onChange={handleChange('idiomas_necessarios')}
                 placeholder="Inglês intermediário, Espanhol básico..."
               />
-              
               <FormField
                 label="Certificações Desejadas"
                 value={formData.certificacoes_desejadas}
@@ -625,14 +532,12 @@ function CadastroVaga() {
               error={errors.skills_obrigatorias_text}
               required
             />
-            
             <FormField
               label="Skills Desejáveis (separadas por vírgula)"
               value={formData.skills_desejaveis_text}
               onChange={handleChange('skills_desejaveis_text')}
               placeholder="TypeScript, Docker, AWS, MongoDB"
             />
-            
             <FormField
               label="Áreas Relacionadas (separadas por vírgula)"
               value={formData.areas_relacionadas_text}
@@ -650,14 +555,12 @@ function CadastroVaga() {
                 onChange={handleChange('horario_trabalho')}
                 placeholder="Segunda a sexta, 8h às 18h"
               />
-              
               <FormField
                 label="Data de Início Desejada"
                 type="date"
                 value={formData.data_inicio_desejada}
                 onChange={handleChange('data_inicio_desejada')}
               />
-              
               <FormField
                 label="Data Limite para Inscrições"
                 type="date"
@@ -665,7 +568,7 @@ function CadastroVaga() {
                 onChange={handleChange('data_limite_inscricoes')}
               />
             </div>
-            
+
             <div className="space-y-4">
               <FormField
                 label="Processo Seletivo"
@@ -675,7 +578,6 @@ function CadastroVaga() {
                 placeholder="Análise de currículo, teste técnico, entrevistas..."
                 rows={2}
               />
-              
               <FormField
                 label="Palavras-chave para Busca (separadas por vírgula)"
                 value={formData.palavras_chave}
@@ -695,7 +597,6 @@ function CadastroVaga() {
                 error={errors.contato_nome}
                 required
               />
-              
               <FormField
                 label="E-mail de Contato"
                 type="email"
@@ -705,7 +606,6 @@ function CadastroVaga() {
                 error={errors.contato_email}
                 required
               />
-              
               <FormField
                 label="Telefone de Contato"
                 value={formData.contato_telefone}
@@ -713,7 +613,6 @@ function CadastroVaga() {
                 placeholder="(92) 99999-9999"
               />
             </div>
-            
             <FormField
               label="Observações Adicionais"
               type="textarea"
@@ -724,7 +623,7 @@ function CadastroVaga() {
             />
           </Card>
 
-          {/* ===== BOTÕES DE AÇÃO ===== */}
+          {/* ===== BOTÕES ===== */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
             <Button
               variant="primary"
@@ -735,7 +634,6 @@ function CadastroVaga() {
             >
               {loading ? 'Criando Vaga...' : 'Publicar Vaga'}
             </Button>
-            
             <Button
               variant="secondary"
               type="button"
@@ -748,6 +646,87 @@ function CadastroVaga() {
           </div>
         </form>
       </div>
+
+      {/* ===== TOAST ===== */}
+      {toast.open && (
+        <div className="fixed top-4 right-4 z-[100]">
+          <div className={`shadow-lg rounded-xl px-4 py-3 border bg-white flex items-start gap-3 min-w-[300px]
+            ${toast.type === 'success' ? 'border-green-200' :
+              toast.type === 'warning' ? 'border-yellow-200' : 'border-red-200'}`}>
+            <div className={`h-8 w-8 rounded-full flex items-center justify-center
+              ${toast.type === 'success' ? 'bg-green-100 text-green-700' :
+                toast.type === 'warning' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+              {toast.type === 'success' ? '✓' : toast.type === 'warning' ? '!' : '✕'}
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold text-gray-900">{toast.title}</div>
+              {toast.message && <div className="text-sm text-gray-600">{toast.message}</div>}
+            </div>
+            <button
+              onClick={() => setToast(prev => ({ ...prev, open: false }))}
+              className="text-gray-400 hover:text-gray-600"
+              aria-label="Fechar"
+              title="Fechar"
+            >
+              <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ===== MODAL DE SUCESSO ===== */}
+      {successModalOpen && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40" />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6">
+            <div className="flex items-start gap-3">
+              <div className="h-10 w-10 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-lg">✓</div>
+              <div className="flex-1">
+                <h3 className="text-xl font-semibold text-gray-900">Vaga publicada com sucesso!</h3>
+                <p className="text-sm text-gray-600 mt-1">
+                  O que você deseja fazer agora?
+                </p>
+              </div>
+              <button
+                onClick={() => setSuccessModalOpen(false)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label="Fechar"
+                title="Fechar"
+              >
+                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 18L18 6M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+
+            <div className="mt-6 flex flex-col sm:flex-row gap-3">
+              <button
+                onClick={() => {
+                  setSuccessModalOpen(false);
+                  resetForm();
+                  showToast('success', 'Pronto!', 'Você pode cadastrar outra vaga.');
+                }}
+                className="flex-1 px-4 py-3 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition"
+              >
+                Cadastrar outra vaga
+              </button>
+
+              <button
+                onClick={() => {
+                  setSuccessModalOpen(false);
+                  // ajuste a rota caso o seu Router use outro path para Match da empresa
+                  navigate('/match-empresa');
+                }}
+                className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+              >
+                Ir para Match
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
