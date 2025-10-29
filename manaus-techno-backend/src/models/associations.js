@@ -1,4 +1,4 @@
-//associations.js
+//associations.js - Definição de associações entre modelos Sequelize
 const Freelancer = require('./Freelancer');
 const Empresa = require('./Empresa');
 const Vaga = require('./Vaga');

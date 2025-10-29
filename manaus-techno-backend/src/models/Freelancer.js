@@ -1,3 +1,4 @@
+//Freelancer.js - Modelo Sequelize para a tabela 'freelancers'
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
@@ -77,9 +78,9 @@ const Freelancer = sequelize.define('Freelancer', {
       },
     },
   },
-  localizacao: {
-    type: DataTypes.GEOMETRY('POINT'),
-    allowNull: true,
+localizacao: {
+  type: DataTypes.GEOGRAPHY('POINT'),
+  allowNull: true,
   },
   profissao: {
     type: DataTypes.STRING(255),

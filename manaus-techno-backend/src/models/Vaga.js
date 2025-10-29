@@ -1,4 +1,4 @@
-//Vaga.js
+//Vaga.js - Modelo Sequelize para a tabela 'vagas'
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 
@@ -59,9 +59,9 @@ const Vaga = sequelize.define('Vaga', {
       notEmpty: { msg: 'Localização é obrigatória' },
     },
   },
-  localizacao: {
-    type: DataTypes.GEOMETRY('POINT'),
-    allowNull: true,
+localizacao: {
+  type: DataTypes.GEOGRAPHY('POINT'),
+  allowNull: true,
   },
   quantidade_vagas: {
     type: DataTypes.INTEGER,

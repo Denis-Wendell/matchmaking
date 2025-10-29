@@ -9,13 +9,20 @@ import {
   localizacaoTxt,
   modalidadeLabel,
   nivelLabel,
+  computeMatchDetailed, // ← usamos a mesma função do modal
 } from '../utils/matchEmpresaFreelancer';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 
-/** Tenta obter o ID da empresa.
- * - 1) via cache local (se o app salvar algo como authTipo/authEmpresaId)
- * - 2) via /api/auth/verificar (token precisa estar no localStorage)
- */
+// ===== helpers de normalização =====
+function removeAcentos(s = '') {
+  return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function toBackendEnum(value = '') {
+  // ex.: "Híbrido" -> "hibrido"
+  return removeAcentos(String(value)).toLowerCase().trim();
+}
+
+/** Tenta obter o ID da empresa. */
 async function resolveEmpresaId() {
   const cacheId =
     localStorage.getItem('authEmpresaId') ||
@@ -39,7 +46,6 @@ async function resolveEmpresaId() {
     const j = await r.json();
     if (r.ok && j?.success && j?.data?.tipo === 'empresa' && j?.data?.empresa?.id) {
       const id = j.data.empresa.id;
-      // cache leve p/ próximas páginas
       localStorage.setItem('authTipo', 'empresa');
       localStorage.setItem('authEmpresaId', id);
       return id;
@@ -71,13 +77,16 @@ function Match_empresa() {
     // busca: ''
   });
 
+  // ===== Novo: cache de scores detalhados (alinhado com o modal) =====
+  const [detalhados, setDetalhados] = useState({}); // { [freelancerId]: number }
+  const [detLoading, setDetLoading] = useState(false);
+
   // modal perfil
   const [perfilOpen, setPerfilOpen] = useState(false);
   const [perfilLoading] = useState(false);
   const [perfilError, setPerfilError] = useState('');
   const [freelancerSelecionado, setFreelancerSelecionado] = useState(null);
 
-  // ===== Helpers =====
   const abrirPerfil = (f) => {
     setPerfilError('');
     setFreelancerSelecionado(f || null);
@@ -90,7 +99,6 @@ function Match_empresa() {
 
   const handleFiltroChange = (tipo, valor) => {
     setFiltros((prev) => ({ ...prev, [tipo]: valor }));
-    // ao mudar filtro, volta para página 1
     setPaginacao((prev) => ({ ...prev, pagina: 1 }));
   };
 
@@ -127,7 +135,6 @@ function Match_empresa() {
     }
   };
 
-  // ===== Carrega empresaId uma vez =====
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -137,10 +144,8 @@ function Match_empresa() {
     return () => { mounted = false; };
   }, []);
 
-  // ===== Carrega do BACK sempre que mudar empresaId/filtros/página =====
   useEffect(() => {
     if (!empresaId) {
-      // se ainda não resolveu o id, não busca
       if (empresaId === null) return;
       setLoading(false);
       setError('Não foi possível identificar a empresa logada.');
@@ -153,14 +158,20 @@ function Match_empresa() {
         setError('');
 
         const url = new URL(`http://localhost:3001/api/empresas/${empresaId}/matches`);
-        url.searchParams.set('status', 'ativo'); // só freelancers ativos
+        url.searchParams.set('status', 'ativo');
         url.searchParams.set('pagina', String(paginacao.pagina));
         url.searchParams.set('limite', String(paginacao.limite));
 
-        // filtros (o back pode ignorar os que não suportar)
-        if (filtros.area && filtros.area !== 'todas') url.searchParams.set('area', filtros.area);
-        if (filtros.modalidade && filtros.modalidade !== 'todas') url.searchParams.set('modalidade', filtros.modalidade);
-        if (filtros.nivel && filtros.nivel !== 'todos') url.searchParams.set('nivel', filtros.nivel);
+        // normaliza filtros para o enum do backend
+        if (filtros.area && filtros.area !== 'todas') {
+          url.searchParams.set('area', filtros.area);
+        }
+        if (filtros.modalidade && filtros.modalidade !== 'todas') {
+          url.searchParams.set('modalidade', toBackendEnum(filtros.modalidade)); // remoto/presencial/hibrido
+        }
+        if (filtros.nivel && filtros.nivel !== 'todos') {
+          url.searchParams.set('nivel', toBackendEnum(filtros.nivel)); // junior/pleno/senior/especialista
+        }
         // if (filtros.busca) url.searchParams.set('busca', filtros.busca);
 
         const token = localStorage.getItem('authToken');
@@ -185,6 +196,9 @@ function Match_empresa() {
           total: Number(payload.total || 0),
           totalPaginas: Number(payload.totalPaginas || 1),
         }));
+
+        // limpa cache de detalhados ao mudar a lista
+        setDetalhados({});
       } catch (e) {
         console.error(e);
         setError(e.message || 'Falha ao buscar freelancers/matches.');
@@ -198,10 +212,72 @@ function Match_empresa() {
     carregar();
   }, [empresaId, paginacao.pagina, paginacao.limite, filtros]);
 
-  // apenas para eventual ordenação local; renderizamos o que vier do backend
+  // ===== Novo: busca as vagas de referência e calcula o score detalhado (igual ao modal) =====
+  useEffect(() => {
+    let cancel = false;
+
+    async function calcularDetalhados() {
+      // colete IDs únicos de vagas de referência
+      const ids = Array.from(
+        new Set(
+          (freelancers || [])
+            .map(f => f?.melhor_vaga_id)
+            .filter(Boolean)
+        )
+      );
+      if (ids.length === 0) return;
+
+      try {
+        setDetLoading(true);
+        const token = localStorage.getItem('authToken');
+
+        // Carrega todas as vagas necessárias e calcula os scores por freelancer
+        // (Promise.all simples; se quiser, dá pra limitar concorrência)
+        const vagasMap = {};
+        await Promise.all(
+          ids.map(async (id) => {
+            try {
+              const r = await fetch(`http://localhost:3001/api/vagas/${id}`, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {}
+              });
+              const j = await r.json();
+              if (r.ok && j?.success && j?.data) {
+                vagasMap[id] = j.data;
+              }
+            } catch (_) {}
+          })
+        );
+
+        const novo = {};
+        for (const f of freelancers) {
+          const vagaId = f?.melhor_vaga_id;
+          if (!vagaId || !vagasMap[vagaId]) continue;
+          try {
+            const d = computeMatchDetailed(vagasMap[vagaId], f);
+            if (Number.isFinite(d?.score)) {
+              novo[f.id] = Math.round(d.score);
+            }
+          } catch (e) {
+            // ignora falha individual
+          }
+        }
+
+        if (!cancel && Object.keys(novo).length > 0) {
+          setDetalhados((prev) => ({ ...prev, ...novo }));
+        }
+      } finally {
+        if (!cancel) setDetLoading(false);
+      }
+    }
+
+    if (freelancers && freelancers.length > 0) {
+      calcularDetalhados();
+    }
+    return () => { cancel = true; };
+  }, [freelancers]);
+
   const freelancersDaPagina = useMemo(() => freelancers, [freelancers]);
 
-  // ===== Render =====
   if (loading && freelancersDaPagina.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -229,8 +305,6 @@ function Match_empresa() {
           <div className="text-center">
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Match de Conhecimento</h1>
             <p className="text-xl text-gray-600 mb-2">Encontre os freelancers mais compatíveis com suas vagas</p>
-
-            {/* Contagem: X nesta página • Y no total */}
             <p className="text-sm text-blue-600">
               {freelancersDaPagina.length} perfis nesta página • {paginacao.total} no total
             </p>
@@ -314,7 +388,9 @@ function Match_empresa() {
               <span className="font-medium text-blue-600">{freelancersDaPagina.length}</span> perfis nesta página •{' '}
               <span className="font-medium text-blue-600">{paginacao.total}</span> no total
             </span>
-            <span className="text-sm text-gray-500">Ordenado por: Compatibilidade ↓</span>
+            <span className="text-sm text-gray-500">
+              Ordenado por: Compatibilidade ↓ {detLoading ? '• recalculando…' : ''}
+            </span>
           </div>
         </div>
 
@@ -328,17 +404,27 @@ function Match_empresa() {
             {freelancersDaPagina.map((f) => {
               const skills = buildCleanSkills(f);
 
-              // usa match do backend quando vier; fallback para computeMatch local
-              const matchPct = Number.isFinite(f.match_pct)
-                ? Math.round(f.match_pct)
+              // 1) preferimos o detalhado (alinhado com o modal)
+              // 2) depois normalizamos o backend match_pct se existir
+              // 3) por fim, caímos no heurístico computeMatch(f)
+              const detalhado = detalhados[f.id];
+
+              const raw = Number(f.match_pct);
+              const normalized = Number.isFinite(raw)
+                ? (raw <= 1 ? raw * 100 : raw)
+                : NaN;
+
+              const fallback = Number.isFinite(normalized)
+                ? Math.round(normalized)
                 : computeMatch(f);
+
+              const matchPct = Number.isFinite(detalhado) ? detalhado : fallback;
 
               const nivel = nivelLabel(f.nivel_experiencia);
               const modalidade = modalidadeLabel(f.modalidade_trabalho);
               const valorHora = formatValorHora(f.valor_hora);
               const compatTxt = `${f.melhor_vaga_titulo || 'Área'} ${nivel !== '—' ? nivel : ''}`.trim();
 
-              // dados da melhor vaga (enviados pelo endpoint de matches)
               const melhorVagaTitulo = f.melhor_vaga_titulo || null;
               const melhorVagaId = f.melhor_vaga_id || null;
 
@@ -367,7 +453,6 @@ function Match_empresa() {
                           </div>
                         </div>
 
-                        {/* bloco da direita: valor/hora, match e vaga com melhor match */}
                         <div className="text-right">
                           <div className="text-2xl font-bold text-green-600 mb-1">{valorHora}</div>
 
@@ -375,22 +460,6 @@ function Match_empresa() {
                             <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-bold">
                               Match: {matchPct}%
                             </span>
-
-                            {melhorVagaTitulo && (
-                              melhorVagaId ? (
-                                <a
-                                  href={`/vagas/${melhorVagaId}`}
-                                  className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold hover:bg-blue-200"
-                                  title="Abrir vaga com melhor match"
-                                >
-                                  Vaga: {melhorVagaTitulo}
-                                </a>
-                              ) : (
-                                <span className="bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-semibold">
-                                  Vaga: {melhorVagaTitulo}
-                                </span>
-                              )
-                            )}
                           </div>
                         </div>
                       </div>
@@ -496,7 +565,6 @@ function Match_empresa() {
                           )}
                         </div>
 
-                        {/* Botões primários azuis */}
                         <div className="flex space-x-3">
                           <Button
                             size="sm"

@@ -1,4 +1,4 @@
-//Candidatura.js
+//Candidatura.js - Modelo Sequelize para a tabela 'candidaturas'
 const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 

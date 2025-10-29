@@ -1,5 +1,10 @@
+// match_vaga.jsx
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  computeMatchDetailed,
+  computeMatch, // fallback final
+} from '../utils/matchEmpresaFreelancer';
 
 function Match_vaga() {
   const navigate = useNavigate();
@@ -41,6 +46,10 @@ function Match_vaga() {
   const [vagaDetalhes, setVagaDetalhes] = useState(null);
   const [modalDetalhes, setModalDetalhes] = useState(false);
   const [detalhesLoading, setDetalhesLoading] = useState(false);
+
+  // ===== Novo: cache de scores detalhados (mesma lógica do lado da empresa)
+  const [detalhados, setDetalhados] = useState({}); // { [vagaId]: number }
+  const [detLoading, setDetLoading] = useState(false);
 
   // toast centralizado
   const [toast, setToast] = useState({ open: false, type: 'success', title: '', message: '' });
@@ -241,6 +250,38 @@ function Match_vaga() {
     }
   };
 
+  // ===== Novo: cálculo dos scores detalhados por vaga (igual ao lado da empresa)
+  useEffect(() => {
+    let cancel = false;
+
+    async function calcularDetalhados() {
+      if (!freelancerData || !Array.isArray(vagas) || vagas.length === 0) return;
+
+      try {
+        setDetLoading(true);
+        const novo = {};
+        for (const v of vagas) {
+          try {
+            const d = computeMatchDetailed(v, freelancerData);
+            if (Number.isFinite(d?.score)) {
+              novo[v.id] = Math.round(d.score);
+            }
+          } catch (_) {
+            // ignora falha individual
+          }
+        }
+        if (!cancel) {
+          setDetalhados(novo); // reseta a cada página/lista para refletir a visão atual
+        }
+      } finally {
+        if (!cancel) setDetLoading(false);
+      }
+    }
+
+    calcularDetalhados();
+    return () => { cancel = true; };
+  }, [vagas, freelancerData]);
+
   // Candidatar-se
   const candidatarSe = async () => {
     if (!vagaCandidatura) return;
@@ -315,7 +356,7 @@ function Match_vaga() {
     syncFavoritosComServidor(novasVagasSalvas);
   };
 
-  // Ver detalhes — injeta match_pct do card
+  // Ver detalhes — injeta match_pct do card (mantido, mas agora a badge usa getMatchPct)
   const handleVerDetalhes = async (vaga) => {
     setDetalhesLoading(true);
     setModalDetalhes(true);
@@ -374,15 +415,29 @@ function Match_vaga() {
   };
 
   // ===== PRIORIDADE: filtros > favoritos > match =====
-  const norm = (s) =>
+  const normTxt = (s) =>
     (s ?? '').toString().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
 
   const passaFiltros = (v) => {
-    if (filtros.area && norm(v.area_atuacao) !== norm(filtros.area)) return false;
-    if (filtros.nivel && norm(v.nivel_experiencia) !== norm(filtros.nivel)) return false;
-    if (filtros.modalidade && norm(v.modalidade_trabalho) !== norm(filtros.modalidade)) return false;
-    if (filtros.tipo && norm(v.tipo_contrato) !== norm(filtros.tipo)) return false;
+    if (filtros.area && normTxt(v.area_atuacao) !== normTxt(filtros.area)) return false;
+    if (filtros.nivel && normTxt(v.nivel_experiencia) !== normTxt(filtros.nivel)) return false;
+    if (filtros.modalidade && normTxt(v.modalidade_trabalho) !== normTxt(filtros.modalidade)) return false;
+    if (filtros.tipo && normTxt(v.tipo_contrato) !== normTxt(filtros.tipo)) return false;
     return true;
+  };
+
+  // ======= NOVO: função unificada de match (igual à prioridade do Match_empresas.jsx)
+  const getMatchPct = (vaga) => {
+    const detalhado = detalhados[vaga.id];
+
+    if (Number.isFinite(detalhado)) return detalhado;
+
+    const raw = Number(vaga.match_pct);
+    const normalized = Number.isFinite(raw) ? (raw <= 1 ? raw * 100 : raw) : NaN;
+
+    if (Number.isFinite(normalized)) return Math.round(normalized);
+
+    return computeMatch(freelancerData); // fallback final (heurístico)
   };
 
   const vagasOrdenadas = useMemo(() => {
@@ -393,13 +448,15 @@ function Match_vaga() {
       const favB = vagasSalvas.has(b.id) ? 1 : 0;
       if (favA !== favB) return favB - favA; // favoritos primeiro
 
-      const mA = typeof a.match_pct === 'number' ? a.match_pct : 0;
-      const mB = typeof b.match_pct === 'number' ? b.match_pct : 0;
+      // usa o mesmo critério de match da UI
+      const mA = getMatchPct(a);
+      const mB = getMatchPct(b);
       return mB - mA; // match desc
     });
 
     return aposFiltro;
-  }, [vagas, vagasSalvas, filtros.area, filtros.nivel, filtros.modalidade, filtros.tipo]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [vagas, vagasSalvas, filtros.area, filtros.nivel, filtros.modalidade, filtros.tipo, detalhados, freelancerData]);
 
   // Loading inicial
   if (loading && vagas.length === 0) {
@@ -427,7 +484,7 @@ function Match_vaga() {
             </p>
             {freelancerData && (
               <p className="text-sm text-blue-600">
-                Bem-vindo, {freelancerData.nome}! • {paginacao.total} vaga(s) compatível(is)
+                Bem-vindo, {freelancerData.nome}! • {paginacao.total} vaga(s) compatível(is) {detLoading ? '• recalculando…' : ''}
               </p>
             )}
           </div>
@@ -612,7 +669,7 @@ function Match_vaga() {
         ) : (
           <div className="space-y-6">
             {vagasOrdenadas.map((vaga) => {
-              const matchPercentual = typeof vaga.match_pct === 'number' ? vaga.match_pct : 0;
+              const matchPct = getMatchPct(vaga);
 
               return (
                 <div key={vaga.id} className="bg-white p-6 rounded-lg shadow-md border border-gray-200 hover:shadow-lg transition-shadow w-full">
@@ -633,8 +690,8 @@ function Match_vaga() {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                            {matchPercentual}% Match
+                          <div className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">
+                            Match: {matchPct}%
                           </div>
                           <button
                             className={`transition-colors ${
@@ -797,8 +854,8 @@ function Match_vaga() {
                         <h2 className="text-2xl font-bold text-gray-900">{vagaDetalhes.titulo}</h2>
                         <p className="text-lg text-gray-600 font-medium">{vagaDetalhes.empresa?.nome || 'Empresa'}</p>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                            {(typeof vagaDetalhes.match_pct === 'number' ? vagaDetalhes.match_pct : 0)}% Match
+                          <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-bold">
+                            Match: {getMatchPct(vagaDetalhes)}%
                           </span>
                           <span className={`px-3 py-1 rounded-full text-sm font-medium ${getNivelColor(vagaDetalhes.nivel_experiencia)}`}>
                             {vagaDetalhes.nivel_experiencia}
@@ -806,8 +863,6 @@ function Match_vaga() {
                         </div>
                       </div>
                     </div>
-                    {/* FIX: fechar com </div> (não self-closing) */}
-                    {/* botão fechar */}
                     <button
                       onClick={() => {
                         setModalDetalhes(false);
@@ -869,7 +924,6 @@ function Match_vaga() {
                       <div className="bg-gray-50 rounded-lg p-4 mb-6">
                         <h3 className="text-lg font-semibold text-gray-900 mb-4">Informações da Vaga</h3>
 
-                        {/* FIX: classe correta md:grid-cols-2 */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <label className="block text-sm font-medium text-gray-600 mb-1">Salário</label>
@@ -943,7 +997,7 @@ function Match_vaga() {
                         <div className="mb-4">
                           <div className="flex items-center justify-center">
                             <span className="bg-green-100 text-green-800 px-4 py-2 rounded-full text-lg font-bold">
-                              {(typeof vagaDetalhes.match_pct === 'number' ? vagaDetalhes.match_pct : 0)}% Match
+                              Match: {getMatchPct(vagaDetalhes)}%
                             </span>
                           </div>
                         </div>
@@ -1054,7 +1108,7 @@ function Match_vaga() {
                 <p className="text-sm text-gray-600">{vagaCandidatura.empresa?.nome}</p>
                 <div className="mt-2">
                   <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs font-medium">
-                    {(typeof vagaCandidatura.match_pct === 'number' ? vagaCandidatura.match_pct : 0)}% Match
+                    Match: {getMatchPct(vagaCandidatura)}%
                   </span>
                 </div>
               </div>

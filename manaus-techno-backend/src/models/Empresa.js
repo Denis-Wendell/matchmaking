@@ -1,3 +1,4 @@
+//Em
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
@@ -78,7 +79,7 @@ const Empresa = sequelize.define('Empresa', {
     },
   },
   localizacao: {
-    type: DataTypes.GEOMETRY('POINT'),
+    type: DataTypes.GEOGRAPHY('POINT'),
     allowNull: true,
   },
   setor_atuacao: {

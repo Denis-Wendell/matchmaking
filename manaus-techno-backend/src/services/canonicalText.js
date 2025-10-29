@@ -1,69 +1,113 @@
 // src/services/canonicalText.js
+function normalize(str = '') {
+  return String(str)
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove acentos
+    .toLowerCase()
+    .trim();
+}
+
+function toList(val) {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  // divide por vírgula / ponto e vírgula / barra
+  return String(val).split(/[,;/\n]/g).map(s => s.trim()).filter(Boolean);
+}
+
+function uniq(arr) {
+  const seen = new Set();
+  const out = [];
+  for (const x of arr) {
+    const k = normalize(x);
+    if (!seen.has(k)) { seen.add(k); out.push(k); }
+  }
+  return out;
+}
+
+function clampText(s = '', max = 700) {
+  s = String(s);
+  return s.length <= max ? s : s.slice(0, max);
+}
 
 function canonicalFreelancer(f) {
   if (!f) return '';
-  const arr = [];
 
-  // Cabeçalho
-  arr.push(`NOME: ${f.nome || ''}`);
-  arr.push(`AREA: ${f.area_atuacao || ''}`);
-  arr.push(`PROFISSAO: ${f.profissao || ''}`);
-  arr.push(`NIVEL: ${f.nivel_experiencia || ''}`);
-  arr.push(`MODALIDADE: ${f.modalidade_trabalho || ''}`);
-  arr.push(`DISP: ${f.disponibilidade || ''}`);
-  if (f.valor_hora) arr.push(`VALOR_HORA: ${f.valor_hora}`);
+  const nome        = normalize(f.nome || '');
+  const area        = normalize(f.area_atuacao || '');
+  const profissao   = normalize(f.profissao || '');
+  const nivel       = normalize(f.nivel_experiencia || '');
+  const modalidade  = normalize(f.modalidade_trabalho || '');
+  const disp        = normalize(f.disponibilidade || '');
+  const valorHora   = f.valor_hora ? String(f.valor_hora) : '';
 
-  // Skills
-  if (Array.isArray(f.skills_array)) arr.push(`SKILLS: ${f.skills_array.join(', ')}`);
-  if (f.principais_habilidades) arr.push(`PRINCIPAIS: ${f.principais_habilidades}`);
+  const skillsArr   = toList(f.skills_array).map(normalize);
+  const principais  = toList(f.principais_habilidades).map(normalize);
+  const idiomas     = toList(f.idiomas).map(normalize);
 
-  // Idiomas
-  if (Array.isArray(f.idiomas)) arr.push(`IDIOMAS: ${f.idiomas.join(', ')}`);
+  // Bloco de skills unificado e deduplicado
+  const skillsAll = uniq([...skillsArr, ...principais]).slice(0, 64);
 
-  // Resumos
-  if (f.resumo_profissional) arr.push(`RESUMO: ${f.resumo_profissional}`);
-  if (f.experiencia_profissional) arr.push(`EXPERIENCIA: ${f.experiencia_profissional}`);
-  if (f.objetivos_profissionais) arr.push(`OBJETIVOS: ${f.objetivos_profissionais}`);
+  const resumo     = clampText(normalize(f.resumo_profissional || ''), 600);
+  const exp        = clampText(normalize(f.experiencia_profissional || ''), 600);
+  const objetivos  = clampText(normalize(f.objetivos_profissionais || ''), 350);
 
-  // Educação
-  if (f.formacao_academica) arr.push(`FORMACAO: ${f.formacao_academica}`);
-  if (f.instituicao) arr.push(`INSTITUICAO: ${f.instituicao}`);
-  if (f.certificacoes) arr.push(`CERTIFICACOES: ${f.certificacoes}`);
+  const linhas = [
+    `nome: ${nome}`,
+    `area: ${area}`,
+    `profissao: ${profissao}`,
+    `nivel: ${nivel}`,
+    `modalidade: ${modalidade}`,
+    `disp: ${disp}`,
+    valorHora ? `valor_hora: ${valorHora}` : '',
+    idiomas.length ? `idiomas: ${idiomas.join(' | ')}` : '',
+    skillsAll.length ? `skills_all: ${skillsAll.join(' | ')}` : '',
+    resumo ? `resumo: ${resumo}` : '',
+    exp ? `experiencia: ${exp}` : '',
+    objetivos ? `objetivos: ${objetivos}` : ''
+  ].filter(Boolean);
 
-  return arr.join('\n');
+  return linhas.join('\n');
 }
 
 function canonicalVaga(v) {
   if (!v) return '';
-  const arr = [];
 
-  arr.push(`TITULO: ${v.titulo || ''}`);
-  arr.push(`AREA: ${v.area_atuacao || ''}`);
-  arr.push(`NIVEL: ${v.nivel_experiencia || ''}`);
-  arr.push(`MODALIDADE: ${v.modalidade_trabalho || ''}`);
-  arr.push(`CONTRATO: ${v.tipo_contrato || ''}`);
+  const titulo      = normalize(v.titulo || '');
+  const area        = normalize(v.area_atuacao || '');
+  const nivel       = normalize(v.nivel_experiencia || '');
+  const modalidade  = normalize(v.modalidade_trabalho || '');
+  const contrato    = normalize(v.tipo_contrato || '');
+  const moeda       = normalize(v.moeda || '');
 
-  // Salário
-  if (v.salario_minimo || v.salario_maximo) {
-    arr.push(`SALARIO: ${v.salario_minimo || ''}-${v.salario_maximo || ''} ${v.moeda || ''}`);
-  }
+  const salMin = v.salario_minimo ? String(v.salario_minimo) : '';
+  const salMax = v.salario_maximo ? String(v.salario_maximo) : '';
 
-  // Skills
-  if (Array.isArray(v.skills_obrigatorias)) {
-    arr.push(`OBRIGATORIAS: ${v.skills_obrigatorias.join(', ')}`);
-  } else if (v.skills_obrigatorias) {
-    arr.push(`OBRIGATORIAS: ${v.skills_obrigatorias}`);
-  }
-  if (Array.isArray(v.skills_desejaveis)) {
-    arr.push(`DESEJAVEIS: ${v.skills_desejaveis.join(', ')}`);
-  } else if (v.skills_desejaveis) {
-    arr.push(`DESEJAVEIS: ${v.skills_desejaveis}`);
-  }
+  // fontes de skills
+  const obrig = toList(v.skills_obrigatorias).map(normalize);
+  const desej = toList(v.skills_desejaveis).map(normalize);
+  const tecn  = toList(v.habilidades_tecnicas).map(normalize);
+  const kw    = toList(v.palavras_chave).map(normalize);
 
-  // Descrição
-  if (v.descricao_geral) arr.push(`DESCRICAO: ${v.descricao_geral}`);
+  // skills unificadas e deduplicadas
+  let skillsAll = uniq([...obrig, ...desej, ...tecn, ...kw]).slice(0, 80);
 
-  return arr.join('\n');
+  // "boost" leve para obrigatórias: repete 1x (ajuda o vetor)
+  const obligBoost = obrig.slice(0, 30);
+  skillsAll = uniq([...skillsAll, ...obligBoost]);
+
+  const desc = clampText(normalize(v.descricao_geral || ''), 700);
+
+  const linhas = [
+    `titulo: ${titulo}`,
+    `area: ${area}`,
+    `nivel: ${nivel}`,
+    `modalidade: ${modalidade}`,
+    `contrato: ${contrato}`,
+    (salMin || salMax) ? `salario: ${salMin}-${salMax} ${moeda}` : '',
+    skillsAll.length ? `skills_all: ${skillsAll.join(' | ')}` : '',
+    desc ? `descricao: ${desc}` : ''
+  ].filter(Boolean);
+
+  return linhas.join('\n');
 }
 
 module.exports = { canonicalFreelancer, canonicalVaga };
