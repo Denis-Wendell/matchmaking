@@ -402,7 +402,7 @@ function Perfil_empresa() {
         </div>
 
         {/* Cards de métricas */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8 ">
           <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm text-gray-500">Vagas Ativas</span>
@@ -430,17 +430,7 @@ function Perfil_empresa() {
             </div>
           </div>
 
-          <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-sm text-gray-500">Anos no Mercado</span>
-            </div>
-            <div className="text-3xl font-bold text-orange-600">
-              {empresaData.created_at ? 
-                new Date().getFullYear() - new Date(empresaData.created_at).getFullYear() : 
-                '0'
-              }
-            </div>
-          </div>
+          
         </div>
 
         {/* Tabs */}

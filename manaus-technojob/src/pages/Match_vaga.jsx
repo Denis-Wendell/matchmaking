@@ -512,11 +512,15 @@ function Match_vaga() {
               >
                 <option value="">Todas as áreas</option>
                 <option value="Tecnologia">Tecnologia</option>
-                <option value="Design">Design</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Vendas">Vendas</option>
-                <option value="Financeiro">Financeiro</option>
-              </select>
+                <option value="Desenvolvimento Web">Desenvolvimento Web</option>
+                <option value="Desenvolvimento Frontend">Desenvolvimento Frontend</option>
+                <option value="Desenvolvimento Backend">Desenvolvimento Backend</option>
+                <option value="Desenvolvimento FullStack">Desenvolvimento FullStack</option>
+                <option value="Devops">Devops</option>
+                <option value="Desenvolvimento Mobile">Desenvolvimento Mobile</option>
+                <option value="UI/UX design">UI/UX design</option>
+                <option value="Cloud Computing">Cloud Computing</option>
+                </select>
             </div>
 
             {/* Nível */}

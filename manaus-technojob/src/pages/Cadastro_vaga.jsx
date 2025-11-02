@@ -246,7 +246,8 @@ function CadastroVaga() {
       skills_obrigatorias_text: (prev.skills_obrigatorias_selected || []).join(', '),
       skills_desejaveis_text: (prev.skills_desejaveis_selected || []).join(', ')
     }));
-  }, [formData.skills_obrigatorias_selected, formData.skills_desejaveis_selected]); // eslint-disable-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.skills_obrigatorias_selected, formData.skills_desejaveis_selected]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -273,7 +274,13 @@ function CadastroVaga() {
       newErrors.contato_email = 'Email inválido';
     }
 
-    // ✅ Agora validamos pelas listas selecionadas
+    // ✅ Validação para satisfazer o Model (TEXT notEmpty)
+    if (!formData.requisitos_obrigatorios.trim() &&
+        (!formData.skills_obrigatorias_selected || formData.skills_obrigatorias_selected.length === 0)) {
+      newErrors.requisitos_obrigatorios = 'Informe os requisitos obrigatórios ou selecione ao menos 1 skill obrigatória';
+    }
+
+    // ✅ Pelo menos 1 skill obrigatória selecionada (UX)
     if (!formData.skills_obrigatorias_selected || formData.skills_obrigatorias_selected.length === 0) {
       newErrors.skills_obrigatorias_selected = 'Selecione pelo menos 1 skill obrigatória';
     }
@@ -335,16 +342,19 @@ function CadastroVaga() {
 
     setLoading(true);
     try {
-      const skillsObrig = Array.from(new Set((formData.skills_obrigatorias_selected || []).map(s => s.trim()).filter(Boolean)));
-      const skillsDesej = Array.from(new Set((formData.skills_desejaveis_selected || []).map(s => s.trim()).filter(Boolean)));
+      const skillsObrig = Array.from(new Set((formData.skills_obrigatorias_selected || [])
+        .map(s => s.trim())
+        .filter(Boolean)));
+      const skillsDesej = Array.from(new Set((formData.skills_desejaveis_selected || [])
+        .map(s => s.trim())
+        .filter(Boolean)));
       const areasRel = Array.from(
         new Set((formData.areas_relacionadas_text || '')
           .split(/[,;\n]/g).map(s => s.trim()).filter(Boolean))
       );
 
-      // Deriva habilidades_tecnicas, mantendo coerência com o cadastro do freelancer
-      const habilidadesTecnicasAuto =
-        [...skillsObrig, ...skillsDesej].join(', ');
+      // Deriva habilidades_tecnicas
+      const habilidadesTecnicasAuto = [...skillsObrig, ...skillsDesej].join(', ');
 
       // Deriva palavras_chave de título/área/skills
       const palavrasChaveAuto = Array.from(new Set([
@@ -353,6 +363,11 @@ function CadastroVaga() {
         ...skillsObrig,
         ...skillsDesej
       ].filter(Boolean))).join(', ');
+
+      // ✅ Fallback para requisitos_obrigatorios (nunca enviar string vazia)
+      const requisitosObrigTxt =
+        formData.requisitos_obrigatorios.trim() ||
+        (skillsObrig.length ? `Conhecimentos essenciais: ${skillsObrig.join(', ')}` : '');
 
       const dadosVaga = {
         titulo: formData.titulo.trim(),
@@ -370,7 +385,7 @@ function CadastroVaga() {
         beneficios_oferecidos: formData.beneficios_oferecidos.trim() || null,
         descricao_geral: formData.descricao_geral.trim(),
         principais_responsabilidades: formData.principais_responsabilidades.trim(),
-        requisitos_obrigatorios: formData.requisitos_obrigatorios.trim(),
+        requisitos_obrigatorios: requisitosObrigTxt, // <- aqui garantimos notEmpty
         requisitos_desejados: formData.requisitos_desejados.trim() || null,
 
         // derivados
@@ -393,7 +408,7 @@ function CadastroVaga() {
         contato_telefone: formData.contato_telefone.trim() || null,
         observacoes: formData.observacoes.trim() || null,
 
-        // Arrays — **alinhados** com cadastro do freelancer
+        // Arrays — alinhados com o Model
         skills_obrigatorias: skillsObrig,
         skills_desejaveis: skillsDesej,
         areas_relacionadas: areasRel
@@ -402,7 +417,7 @@ function CadastroVaga() {
       const token = localStorage.getItem('authToken');
       const response = await fetch('http://localhost:3001/api/vagas', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(dadosVaga)
       });
       const result = await response.json();
@@ -429,18 +444,16 @@ function CadastroVaga() {
   // ===== SELECTS =====
   const areasAtuacao = [
     { value: 'Tecnologia', label: 'Tecnologia' },
-    { value: 'Design Gráfico', label: 'Design Gráfico' },
-    { value: 'Marketing Digital', label: 'Marketing Digital' },
-    { value: 'Consultoria', label: 'Consultoria' },
-    { value: 'Educação', label: 'Educação' },
-    { value: 'Vendas', label: 'Vendas' },
-    { value: 'Financeiro', label: 'Financeiro' },
-    { value: 'Jurídico', label: 'Jurídico' },
-    { value: 'Recursos Humanos', label: 'Recursos Humanos' },
-    { value: 'Redação', label: 'Redação' },
-    { value: 'Tradução', label: 'Tradução' },
-    { value: 'Fotografia', label: 'Fotografia' },
-    { value: 'Outros', label: 'Outros' }
+    { value: 'Dados', label: 'Dados' },
+    { value: 'Desenvolvimento Web', label: 'Desenvolvimento Web' },
+    { value: 'Desenvolvimento Frontend', label: 'Desenvolvimento Frontend' },
+    { value: 'Desenvolvimento Backend', label: 'Desenvolvimento Backend' },
+    { value: 'Desenvolvimento FullStack', label: 'Desenvolvimento FullStack' },
+    { value: 'Devops', label: 'Devops' },
+    { value: 'Desenvolvimento Mobile', label: 'Desenvolvimento Mobile' },
+    { value: 'UI/UX design', label: 'UI/UX design' },
+    { value: 'Cloud Computing', label: 'Cloud Computing' },
+
   ];
 
   const niveisExperiencia = [
@@ -621,6 +634,7 @@ function CadastroVaga() {
                 onChange={handleChange('requisitos_obrigatorios')}
                 placeholder="Formação, experiências mínimas, conhecimentos essenciais..."
                 rows={3}
+                error={errors.requisitos_obrigatorios}
               />
               <FormField
                 label="Requisitos Desejados"

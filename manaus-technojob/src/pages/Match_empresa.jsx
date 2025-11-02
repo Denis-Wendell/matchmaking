@@ -1,4 +1,4 @@
-// src/pages/Match_empresas.jsx
+// src/pages/Match_empresa.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import Button from '../components/Button';
 import Loading from '../components/Loading';
@@ -9,7 +9,7 @@ import {
   localizacaoTxt,
   modalidadeLabel,
   nivelLabel,
-  computeMatchDetailed, // ← usamos a mesma função do modal
+  computeMatchDetailed, // usamos a mesma função do modal
 } from '../utils/matchEmpresaFreelancer';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 
@@ -18,27 +18,46 @@ function removeAcentos(s = '') {
   return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 }
 function toBackendEnum(value = '') {
-  // ex.: "Híbrido" -> "hibrido"
-  return removeAcentos(String(value)).toLowerCase().trim();
+  return removeAcentos(String(value)).toLowerCase().trim(); // remoto/presencial/hibrido, junior/pleno/etc
 }
 
-/** Tenta obter o ID da empresa. */
+function getQueryParam(name) {
+  try {
+    const u = new URL(window.location.href);
+    return u.searchParams.get(name);
+  } catch {
+    return null;
+  }
+}
+
+/** Resolve o ID da empresa com 3 fontes (prioridade desc):
+ *  1) query string ?empresaId=<uuid> (salva em localStorage)
+ *  2) localStorage (authEmpresaId/tipo/Token)
+ *  3) /api/auth/verificar (se tiver token e for empresa)
+ */
 async function resolveEmpresaId() {
+  // 1) override via query string
+  const qid = getQueryParam('empresaId');
+  if (qid) {
+    localStorage.setItem('authTipo', 'empresa');
+    localStorage.setItem('authEmpresaId', qid);
+    return qid;
+  }
+
+  // 2) cache local
   const cacheId =
     localStorage.getItem('authEmpresaId') ||
     localStorage.getItem('empresaId') ||
     null;
-
   const tipo =
     localStorage.getItem('authTipo') ||
     localStorage.getItem('tipo') ||
     null;
-
   if (tipo === 'empresa' && cacheId) return cacheId;
 
+  // 3) valida token no backend
   const token = localStorage.getItem('authToken');
   if (!token) return null;
-
   try {
     const r = await fetch('http://localhost:3001/api/auth/verificar', {
       headers: { Authorization: `Bearer ${token}` },
@@ -54,7 +73,7 @@ async function resolveEmpresaId() {
   return null;
 }
 
-function Match_empresa() {
+export default function Match_empresa() {
   const [empresaId, setEmpresaId] = useState(null);
 
   const [freelancers, setFreelancers] = useState([]);
@@ -69,15 +88,14 @@ function Match_empresa() {
     totalPaginas: 1,
   });
 
-  // filtros enviados ao BACK (o backend pode ignorar os que não suportar)
+  // filtros enviados ao BACK
   const [filtros, setFiltros] = useState({
     area: 'todas',
     modalidade: 'todas',
     nivel: 'todos',
-    // busca: ''
   });
 
-  // ===== Novo: cache de scores detalhados (alinhado com o modal) =====
+  // cache de scores detalhados (alinhado com o modal)
   const [detalhados, setDetalhados] = useState({}); // { [freelancerId]: number }
   const [detLoading, setDetLoading] = useState(false);
 
@@ -86,6 +104,10 @@ function Match_empresa() {
   const [perfilLoading] = useState(false);
   const [perfilError, setPerfilError] = useState('');
   const [freelancerSelecionado, setFreelancerSelecionado] = useState(null);
+
+  // Painel de debug para alinhar empresaId
+  const [showDebug, setShowDebug] = useState(false);
+  const [empresaIdEdit, setEmpresaIdEdit] = useState('');
 
   const abrirPerfil = (f) => {
     setPerfilError('');
@@ -135,18 +157,23 @@ function Match_empresa() {
     }
   };
 
+  // resolve empresaId na montagem
   useEffect(() => {
     let mounted = true;
     (async () => {
       const id = await resolveEmpresaId();
-      if (mounted) setEmpresaId(id);
+      if (mounted) {
+        setEmpresaId(id);
+        setEmpresaIdEdit(id || '');
+      }
     })();
     return () => { mounted = false; };
   }, []);
 
+  // busca lista
   useEffect(() => {
     if (!empresaId) {
-      if (empresaId === null) return;
+      if (empresaId === null) return; // ainda resolvendo
       setLoading(false);
       setError('Não foi possível identificar a empresa logada.');
       return;
@@ -158,11 +185,9 @@ function Match_empresa() {
         setError('');
 
         const url = new URL(`http://localhost:3001/api/empresas/${empresaId}/matches`);
-        url.searchParams.set('status', 'ativo');
         url.searchParams.set('pagina', String(paginacao.pagina));
         url.searchParams.set('limite', String(paginacao.limite));
 
-        // normaliza filtros para o enum do backend
         if (filtros.area && filtros.area !== 'todas') {
           url.searchParams.set('area', filtros.area);
         }
@@ -172,7 +197,6 @@ function Match_empresa() {
         if (filtros.nivel && filtros.nivel !== 'todos') {
           url.searchParams.set('nivel', toBackendEnum(filtros.nivel)); // junior/pleno/senior/especialista
         }
-        // if (filtros.busca) url.searchParams.set('busca', filtros.busca);
 
         const token = localStorage.getItem('authToken');
         const res = await fetch(url.toString(), {
@@ -197,8 +221,7 @@ function Match_empresa() {
           totalPaginas: Number(payload.totalPaginas || 1),
         }));
 
-        // limpa cache de detalhados ao mudar a lista
-        setDetalhados({});
+        setDetalhados({}); // limpa cache ao mudar a lista
       } catch (e) {
         console.error(e);
         setError(e.message || 'Falha ao buscar freelancers/matches.');
@@ -212,12 +235,11 @@ function Match_empresa() {
     carregar();
   }, [empresaId, paginacao.pagina, paginacao.limite, filtros]);
 
-  // ===== Novo: busca as vagas de referência e calcula o score detalhado (igual ao modal) =====
+  // busca vaga de referência e calcula o score detalhado (igual ao modal)
   useEffect(() => {
     let cancel = false;
 
     async function calcularDetalhados() {
-      // colete IDs únicos de vagas de referência
       const ids = Array.from(
         new Set(
           (freelancers || [])
@@ -231,8 +253,6 @@ function Match_empresa() {
         setDetLoading(true);
         const token = localStorage.getItem('authToken');
 
-        // Carrega todas as vagas necessárias e calcula os scores por freelancer
-        // (Promise.all simples; se quiser, dá pra limitar concorrência)
         const vagasMap = {};
         await Promise.all(
           ids.map(async (id) => {
@@ -244,7 +264,7 @@ function Match_empresa() {
               if (r.ok && j?.success && j?.data) {
                 vagasMap[id] = j.data;
               }
-            } catch (_) {}
+            } catch {}
           })
         );
 
@@ -257,9 +277,7 @@ function Match_empresa() {
             if (Number.isFinite(d?.score)) {
               novo[f.id] = Math.round(d.score);
             }
-          } catch (e) {
-            // ignora falha individual
-          }
+          } catch {}
         }
 
         if (!cancel && Object.keys(novo).length > 0) {
@@ -278,6 +296,7 @@ function Match_empresa() {
 
   const freelancersDaPagina = useMemo(() => freelancers, [freelancers]);
 
+  // ===== Render =====
   if (loading && freelancersDaPagina.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -308,9 +327,60 @@ function Match_empresa() {
             <p className="text-sm text-blue-600">
               {freelancersDaPagina.length} perfis nesta página • {paginacao.total} no total
             </p>
+            <p className="text-xs text-gray-500 mt-1">
+              empresaId atual: <code className="bg-gray-100 px-1 py-0.5 rounded">{empresaId || '—'}</code>
+              {' '}<button
+                onClick={() => setShowDebug(v => !v)}
+                className="ml-2 text-blue-600 underline"
+              >
+                {showDebug ? 'ocultar depuração' : 'mostrar depuração'}
+              </button>
+            </p>
           </div>
         </div>
       </div>
+
+      {/* Painel de depuração / alinhamento do empresaId */}
+      {showDebug && (
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm">
+            <div className="font-semibold mb-2">Alinhar empresaId (debug)</div>
+            <div className="flex flex-col md:flex-row gap-2">
+              <input
+                value={empresaIdEdit}
+                onChange={(e) => setEmpresaIdEdit(e.target.value)}
+                placeholder="cole aqui o UUID da empresa (igual ao empresa_id da vaga)"
+                className="flex-1 p-2 border rounded"
+              />
+              <Button
+                onClick={() => {
+                  const val = (empresaIdEdit || '').trim();
+                  if (!val) return;
+                  localStorage.setItem('authTipo', 'empresa');
+                  localStorage.setItem('authEmpresaId', val);
+                  setEmpresaId(val);
+                }}
+              >
+                Usar este ID
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  localStorage.removeItem('authEmpresaId');
+                  localStorage.removeItem('authTipo');
+                  setEmpresaId(null);
+                  setEmpresaIdEdit('');
+                }}
+              >
+                Limpar localStorage
+              </Button>
+            </div>
+            <div className="text-gray-600 mt-2">
+              Dica: você também pode abrir esta tela com <code>?empresaId=&lt;uuid&gt;</code> na URL para forçar o ID.
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filtros */}
@@ -321,22 +391,17 @@ function Match_empresa() {
               <select
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 value={filtros.area}
-                onChange={(e) => handleFiltroChange('area', e.target.value)}
-              >
-                <option value="todas">Todas as áreas</option>
+                onChange={(e) => handleFiltroChange('area', e.target.value)}>
+                <option value="">Todas as áreas</option>
                 <option value="Tecnologia">Tecnologia</option>
-                <option value="Design Gráfico">Design Gráfico</option>
-                <option value="Marketing Digital">Marketing Digital</option>
-                <option value="Consultoria">Consultoria</option>
-                <option value="Educação">Educação</option>
-                <option value="Vendas">Vendas</option>
-                <option value="Financeiro">Financeiro</option>
-                <option value="Jurídico">Jurídico</option>
-                <option value="Recursos Humanos">Recursos Humanos</option>
-                <option value="Redação">Redação</option>
-                <option value="Tradução">Tradução</option>
-                <option value="Fotografia">Fotografia</option>
-                <option value="Outros">Outros</option>
+                <option value="Desenvolvimento Web">Desenvolvimento Web</option>
+                <option value="Desenvolvimento Frontend">Desenvolvimento Frontend</option>
+                <option value="Desenvolvimento Backend">Desenvolvimento Backend</option>
+                <option value="Desenvolvimento FullStack">Desenvolvimento FullStack</option>
+                <option value="Devops">Devops</option>
+                <option value="Desenvolvimento Mobile">Desenvolvimento Mobile</option>
+                <option value="UI/UX design">UI/UX design</option>
+                <option value="Cloud Computing">Cloud Computing</option>
               </select>
             </div>
 
@@ -397,16 +462,17 @@ function Match_empresa() {
         {/* Lista */}
         {freelancersDaPagina.length === 0 ? (
           <div className="bg-white p-8 rounded-lg shadow-md text-center">
-            <p className="text-gray-600">Nenhum freelancer encontrado com os filtros atuais.</p>
+            <p className="text-gray-600">Nenhum freelancer encontrado para a empresa atual.</p>
+            <p className="text-xs text-gray-500 mt-2">
+              Verifique se o <b>empresa_id</b> da vaga no banco é o mesmo do <b>empresaId</b> acima.
+            </p>
           </div>
         ) : (
           <div className="space-y-4">
             {freelancersDaPagina.map((f) => {
               const skills = buildCleanSkills(f);
 
-              // 1) preferimos o detalhado (alinhado com o modal)
-              // 2) depois normalizamos o backend match_pct se existir
-              // 3) por fim, caímos no heurístico computeMatch(f)
+              // 1) preferimos o detalhado; 2) depois o valor do backend; 3) fallback heurístico
               const detalhado = detalhados[f.id];
 
               const raw = Number(f.match_pct);
@@ -424,9 +490,6 @@ function Match_empresa() {
               const modalidade = modalidadeLabel(f.modalidade_trabalho);
               const valorHora = formatValorHora(f.valor_hora);
               const compatTxt = `${f.melhor_vaga_titulo || 'Área'} ${nivel !== '—' ? nivel : ''}`.trim();
-
-              const melhorVagaTitulo = f.melhor_vaga_titulo || null;
-              const melhorVagaId = f.melhor_vaga_id || null;
 
               return (
                 <div key={f.id} className="bg-white rounded-lg shadow-lg border border-gray-200 p-6 hover:shadow-xl transition-shadow">
@@ -632,5 +695,3 @@ function Match_empresa() {
     </div>
   );
 }
-
-export default Match_empresa;
