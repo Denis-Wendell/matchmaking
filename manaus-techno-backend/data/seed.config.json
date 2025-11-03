@@ -1,0 +1,38 @@
+{
+  "volumes": {
+    "empresas": 8,
+    "vagasPorEmpresaMin": 3,
+    "vagasPorEmpresaMax": 7,
+    "freelancers": 150,
+    "candidaturas": 400
+  },
+  "distribuicoes": {
+    "nivelExperiencia": { "junior": 0.3, "pleno": 0.4, "senior": 0.2, "especialista": 0.1 },
+    "modalidade": { "remoto": 0.6, "hibrido": 0.3, "presencial": 0.1 },
+    "vagasAtivas": 0.75
+  },
+  "faixasValorHoraBRL": {
+    "junior": [25, 45],
+    "pleno": [40, 80],
+    "senior": [70, 150],
+    "especialista": [120, 220]
+  },
+  "negocio": {
+    "skillSets": {
+      "frontend": ["React", "Next.js", "Vue", "Tailwind", "TypeScript", "Vite", "Redux"],
+      "backend": ["Node.js", "Express", "PostgreSQL", "Prisma", "Sequelize", "Docker", "JWT"],
+      "dados": ["Python", "SQL", "Pandas", "Power BI", "ETL", "Airflow"],
+      "design": ["Figma", "Illustrator", "UX", "UI", "Design System"],
+      "mobile": ["Kotlin", "Jetpack Compose", "Android", "Firebase"]
+    },
+    "idiomas": ["Português", "Inglês", "Espanhol"],
+    "cidades": ["Manaus-AM", "São Paulo-SP", "Rio de Janeiro-RJ", "Belém-PA", "Recife-PE", "Curitiba-PR"]
+  },
+  "datas": {
+    "janelaDias": 120
+  },
+  "regrasCandidatura": {
+    "matchMinParaCandidatar": 60,
+    "maxPorFreelancer": 8
+  }
+}

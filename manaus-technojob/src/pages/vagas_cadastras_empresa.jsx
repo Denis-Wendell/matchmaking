@@ -1,4 +1,4 @@
-// src/pages/Vagas_cadastrada_empresa.jsx
+// src/pages/Vagas_cadastras_empresa.jsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 
@@ -575,6 +575,14 @@ function Vagas_cadastrada_empresa() {
         loading={detalheLoading}
         error={detalheError}
         candidatura={candidaturaSelecionada}
+        vagaId={
+          candidaturaSelecionada?.vaga_id ||
+          candidaturaSelecionada?.id_vaga ||
+          candidaturaSelecionada?.vaga?.id ||
+          vagaSelecionada?.id ||
+          null
+        }
+        vaga={vagaSelecionada || candidaturaSelecionada?.vaga || null}
       />
 
       {/* Modal: Detalhes da Vaga (overflow) */}

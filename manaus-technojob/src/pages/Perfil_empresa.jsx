@@ -429,8 +429,6 @@ function Perfil_empresa() {
               {vagas.reduce((total, vaga) => total + (vaga.candidaturas || 0), 0)}
             </div>
           </div>
-
-          
         </div>
 
         {/* Tabs */}
@@ -801,7 +799,12 @@ function Perfil_empresa() {
         onClose={() => setPerfilOpen(false)}
         loading={detalheLoading}
         error={detalheError}
+        // retrocompat: ainda enviamos a candidatura inteira
         candidatura={candidaturaSelecionada}
+        // novo formato: passamos o freelancer e a vaga de referência explicitamente
+        freelancer={candidaturaSelecionada?.freelancer}
+        vagaId={candidaturaSelecionada?.vaga?.id || vagaSelecionada?.id}
+        fetchVaga={true}
       />
 
       {/* ===================== Modal de Edição ===================== */}
@@ -1067,7 +1070,7 @@ function Perfil_empresa() {
                   </div>
                   
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block textsm font-medium text-gray-700 mb-1">
                       Telefone do Responsável
                     </label>
                     <input

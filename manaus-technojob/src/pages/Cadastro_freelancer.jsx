@@ -370,18 +370,15 @@ function CadastroFreelancer() {
 
   const areasAtuacao = [
     { value: 'Tecnologia', label: 'Tecnologia' },
-    { value: 'Design Gráfico', label: 'Design Gráfico' },
-    { value: 'Marketing Digital', label: 'Marketing Digital' },
-    { value: 'Consultoria', label: 'Consultoria' },
-    { value: 'Educação', label: 'Educação' },
-    { value: 'Vendas', label: 'Vendas' },
-    { value: 'Financeiro', label: 'Financeiro' },
-    { value: 'Jurídico', label: 'Jurídico' },
-    { value: 'Recursos Humanos', label: 'Recursos Humanos' },
-    { value: 'Redação', label: 'Redação' },
-    { value: 'Tradução', label: 'Tradução' },
-    { value: 'Fotografia', label: 'Fotografia' },
-    { value: 'Outros', label: 'Outros' }
+    { value: 'Dados', label: 'Dados' },
+    { value: 'Desenvolvimento Web', label: 'Desenvolvimento Web' },
+    { value: 'Desenvolvimento Frontend', label: 'Desenvolvimento Frontend' },
+    { value: 'Desenvolvimento Backend', label: 'Desenvolvimento Backend' },
+    { value: 'Desenvolvimento FullStack', label: 'Desenvolvimento FullStack' },
+    { value: 'Devops', label: 'Devops' },
+    { value: 'Desenvolvimento Mobile', label: 'Desenvolvimento Mobile' },
+    { value: 'UI/UX design', label: 'UI/UX design' },
+    { value: 'Cloud Computing', label: 'Cloud Computing' },
   ];
 
   const opcoesDisponibilidade = [

@@ -104,6 +104,7 @@ export default function Match_empresa() {
   const [perfilLoading] = useState(false);
   const [perfilError, setPerfilError] = useState('');
   const [freelancerSelecionado, setFreelancerSelecionado] = useState(null);
+  const [vagaIdSelecionada, setVagaIdSelecionada] = useState(null); // (novo)
 
   // Painel de debug para alinhar empresaId
   const [showDebug, setShowDebug] = useState(false);
@@ -112,11 +113,15 @@ export default function Match_empresa() {
   const abrirPerfil = (f) => {
     setPerfilError('');
     setFreelancerSelecionado(f || null);
+    // pega a melhor_vaga_id vinda do endpoint de matches (ou tenta outras chaves, por robustez)
+    const idRef = f?.melhor_vaga_id || f?.vaga_id || f?.id_vaga || null;
+    setVagaIdSelecionada(idRef);
     setPerfilOpen(true);
   };
   const fecharPerfil = () => {
     setPerfilOpen(false);
     setFreelancerSelecionado(null);
+    setVagaIdSelecionada(null);
   };
 
   const handleFiltroChange = (tipo, valor) => {
@@ -243,7 +248,7 @@ export default function Match_empresa() {
       const ids = Array.from(
         new Set(
           (freelancers || [])
-            .map(f => f?.melhor_vaga_id)
+            .flatMap(f => [f?.melhor_vaga_id, f?.vaga_id, f?.id_vaga]) // (robusto)
             .filter(Boolean)
         )
       );
@@ -270,7 +275,7 @@ export default function Match_empresa() {
 
         const novo = {};
         for (const f of freelancers) {
-          const vagaId = f?.melhor_vaga_id;
+          const vagaId = f?.melhor_vaga_id || f?.vaga_id || f?.id_vaga; // (robusto)
           if (!vagaId || !vagasMap[vagaId]) continue;
           try {
             const d = computeMatchDetailed(vagasMap[vagaId], f);
@@ -691,6 +696,7 @@ export default function Match_empresa() {
         loading={perfilLoading}
         error={perfilError}
         candidatura={freelancerSelecionado ? { freelancer: freelancerSelecionado } : null}
+        vagaId={vagaIdSelecionada} // passa a vaga de referência pro modal
       />
     </div>
   );
