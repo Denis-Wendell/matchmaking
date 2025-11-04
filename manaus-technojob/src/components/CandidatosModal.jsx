@@ -1,14 +1,31 @@
-import React, { useState } from 'react';
+// src/components/CandidatosModal.jsx
+import React, { useState, useEffect } from 'react';
 import CandidatoCard from './CandidatoCard';
+import { computeMatchDetailed } from '../utils/matchEmpresaFreelancer';
 
 const STATUS_OPCOES = [
-  { value: 'pendente', label: 'Pendente' },
-  { value: 'visualizada', label: 'Visualizada' },
   { value: 'interessado', label: 'Interessado' },
-  { value: 'nao_interessado', label: 'Não interessado' },
   { value: 'rejeitada', label: 'Rejeitada' },
   { value: 'contratado', label: 'Contratado' },
 ];
+
+// Normaliza qualquer formato para 0–100
+function toPct(raw) {
+  const n = Number(raw);
+  if (!Number.isFinite(n)) return null;
+  if (n <= 1) return Math.round(n * 100);     // 0–1  ➜ 0–100
+  if (n <= 100) return Math.round(n);         // 0–100 ➜ 0–100
+  if (n <= 10000) return Math.round(n / 100); // 0–10000 (ex: 7000) ➜ 0–100
+  return 100;
+}
+
+// Cores do selo conforme % (ajuste se quiser)
+function badgeColor(pct) {
+  if (pct >= 80) return 'bg-green-100 text-green-700 border-green-200';
+  if (pct >= 60) return 'bg-blue-100 text-blue-700 border-blue-200';
+  if (pct >= 40) return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+  return 'bg-red-100 text-red-700 border-red-200';
+}
 
 export default function CandidatosModal({
   open,
@@ -20,13 +37,38 @@ export default function CandidatosModal({
   onVerPerfil,
 }) {
   const [itens, setItens] = useState(candidatos);
-  const [savingMap, setSavingMap] = useState({}); // { [candidaturaId]: boolean }
-  const [errMap, setErrMap] = useState({});       // { [candidaturaId]: string }
+  const [savingMap, setSavingMap] = useState({});
+  const [errMap, setErrMap] = useState({});
+  const [matchMap, setMatchMap] = useState({}); // { [candidaturaId]: number|null }
 
-  // Sempre que lista externa mudar, atualiza interna
-  React.useEffect(() => {
+  // Sincroniza lista interna
+  useEffect(() => {
     setItens(candidatos);
   }, [candidatos]);
+
+  // Calcula o match assim que itens/vaga mudarem
+  useEffect(() => {
+    if (!vagaSelecionada || !Array.isArray(itens) || itens.length === 0) {
+      setMatchMap({});
+      return;
+    }
+    const next = {};
+    for (const c of itens) {
+      try {
+        const freelancer = c.freelancer || c?.dados?.freelancer || null;
+        if (!freelancer) {
+          next[c.id] = null;
+          continue;
+        }
+        const res = computeMatchDetailed(vagaSelecionada, freelancer);
+        const raw = res?.score ?? res?.match ?? null;
+        next[c.id] = toPct(raw);
+      } catch {
+        next[c.id] = null;
+      }
+    }
+    setMatchMap(next);
+  }, [itens, vagaSelecionada]);
 
   if (!open) return null;
 
@@ -41,7 +83,7 @@ export default function CandidatosModal({
         return;
       }
 
-      // Update otimista
+      // atualização otimista
       setItens(prev =>
         prev.map(c =>
           c.id === candidaturaId ? { ...c, status: novoStatus, feedback_empresa: feedback } : c
@@ -61,20 +103,12 @@ export default function CandidatosModal({
       });
 
       const json = await res.json();
-      if (!res.ok || !json.success) {
-        throw new Error(json.message || 'Falha ao atualizar');
-      }
+      if (!res.ok || !json.success) throw new Error(json.message || 'Falha ao atualizar');
 
-      // Garante dados do backend (caso venham normalizados)
-      setItens(prev =>
-        prev.map(c => (c.id === candidaturaId ? { ...c, ...json.data } : c))
-      );
+      // confirma dados do backend
+      setItens(prev => prev.map(c => (c.id === candidaturaId ? { ...c, ...json.data } : c)));
     } catch (e) {
-      console.error(e);
-      setErrMap(prev => ({
-        ...prev,
-        [candidaturaId]: e.message || 'Erro ao atualizar status',
-      }));
+      setErrMap(prev => ({ ...prev, [candidaturaId]: e.message || 'Erro ao atualizar status' }));
     } finally {
       setSavingMap(prev => ({ ...prev, [candidaturaId]: false }));
     }
@@ -111,19 +145,28 @@ export default function CandidatosModal({
             <div className="text-center py-10 text-gray-600">Nenhuma candidatura para esta vaga ainda.</div>
           ) : (
             <div className="space-y-4">
-              {itens.map((cand) => (
-                <CandidatoCard
-                  key={cand.id}
-                  candidatura={cand}
-                  onVerPerfil={onVerPerfil}
-                  statusOptions={STATUS_OPCOES}
-                  saving={!!savingMap[cand.id]}
-                  errorMsg={errMap[cand.id]}
-                  onChangeStatus={(novoStatus, feedback) =>
-                    atualizarStatus(cand.id, novoStatus, feedback)
-                  }
-                />
-              ))}
+              {itens.map((cand) => {
+                const pct = matchMap[cand.id];
+                return (
+                  <div key={cand.id} className="relative">
+                    {/* selo no canto superior-direito do card */}
+                    <div className={` rounded right-9 px-2 py-0.5  text-xs font-semibold border-2 ${Number.isFinite(pct) ? badgeColor(pct) : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                      {Number.isFinite(pct) ? `Match ${pct}%` : 'Match —'}
+                    </div>
+
+                    <CandidatoCard
+                      candidatura={cand}
+                      onVerPerfil={onVerPerfil}
+                      statusOptions={STATUS_OPCOES}
+                      saving={!!savingMap[cand.id]}
+                      errorMsg={errMap[cand.id]}
+                      onChangeStatus={(novoStatus, feedback) =>
+                        atualizarStatus(cand.id, novoStatus, feedback)
+                      }
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
