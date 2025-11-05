@@ -1,8 +1,7 @@
-//Em
+//Empresa.js
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
 const { sequelize } = require('../config/database');
-
 const Empresa = sequelize.define('Empresa', {
   id: {
     type: DataTypes.UUID,

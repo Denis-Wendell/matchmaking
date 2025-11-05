@@ -332,60 +332,11 @@ export default function Match_empresa() {
             <p className="text-sm text-blue-600">
               {freelancersDaPagina.length} perfis nesta página • {paginacao.total} no total
             </p>
-            <p className="text-xs text-gray-500 mt-1">
-              empresaId atual: <code className="bg-gray-100 px-1 py-0.5 rounded">{empresaId || '—'}</code>
-              {' '}<button
-                onClick={() => setShowDebug(v => !v)}
-                className="ml-2 text-blue-600 underline"
-              >
-                {showDebug ? 'ocultar depuração' : 'mostrar depuração'}
-              </button>
-            </p>
+           
           </div>
         </div>
       </div>
 
-      {/* Painel de depuração / alinhamento do empresaId */}
-      {showDebug && (
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6 text-sm">
-            <div className="font-semibold mb-2">Alinhar empresaId (debug)</div>
-            <div className="flex flex-col md:flex-row gap-2">
-              <input
-                value={empresaIdEdit}
-                onChange={(e) => setEmpresaIdEdit(e.target.value)}
-                placeholder="cole aqui o UUID da empresa (igual ao empresa_id da vaga)"
-                className="flex-1 p-2 border rounded"
-              />
-              <Button
-                onClick={() => {
-                  const val = (empresaIdEdit || '').trim();
-                  if (!val) return;
-                  localStorage.setItem('authTipo', 'empresa');
-                  localStorage.setItem('authEmpresaId', val);
-                  setEmpresaId(val);
-                }}
-              >
-                Usar este ID
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  localStorage.removeItem('authEmpresaId');
-                  localStorage.removeItem('authTipo');
-                  setEmpresaId(null);
-                  setEmpresaIdEdit('');
-                }}
-              >
-                Limpar localStorage
-              </Button>
-            </div>
-            <div className="text-gray-600 mt-2">
-              Dica: você também pode abrir esta tela com <code>?empresaId=&lt;uuid&gt;</code> na URL para forçar o ID.
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Filtros */}
@@ -446,7 +397,7 @@ export default function Match_empresa() {
                   setPaginacao((prev) => ({ ...prev, pagina: 1 }));
                 }}
                 variant="outline"
-                className="w-full py-3"
+                className="w-full px-3 py-3 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
               >
                 Limpar Filtros
               </Button>
@@ -469,7 +420,7 @@ export default function Match_empresa() {
           <div className="bg-white p-8 rounded-lg shadow-md text-center">
             <p className="text-gray-600">Nenhum freelancer encontrado para a empresa atual.</p>
             <p className="text-xs text-gray-500 mt-2">
-              Verifique se o <b>empresa_id</b> da vaga no banco é o mesmo do <b>empresaId</b> acima.
+              Verifique se há <b>vagas ativas</b>, ou cadastre uma <b>nova vaga</b> para retornar os resultados.
             </p>
           </div>
         ) : (

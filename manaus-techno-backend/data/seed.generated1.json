@@ -1,10 +1,10 @@
 {
   "empresas": [
     {
-      "id": "b2cfd0c6-2e56-4d2e-bb6c-2b9e39d3d601",
+      "id": "34f360ef-6b8c-4439-add4-d8b6a02bff95",
       "nome": "SIDI Tecnologia",
-      "cnpj": "00.000.636/0002-74",
-      "email_corporativo": "contato+v2@sidi.com.br",
+      "cnpj": "00.000.636/0001-74",
+      "email_corporativo": "contato@sidi.com.br",
       "senha_hash": "Temp@123456",
       "telefone": "+55 92 93930-7703",
       "cidade": "Manaus",
@@ -15,17 +15,17 @@
       "areas_atuacao": ["Tecnologia","Desenvolvimento Web","Cloud Computing"],
       "beneficios_array": ["VR","Plano de Saúde","Home Office"],
       "tecnologias_usadas": ["Node.js","React","PostgreSQL","AWS"],
-      "descricao_empresa": "A SIDI atua com soluções web e cloud com foco em qualidade e melhoria contínua.",
+      "descricao_empresa": "A SIDI Tecnologia atua no setor de Tecnologia, desenvolvendo soluções web e soluções em nuvem com foco em qualidade e melhoria contínua.",
       "setor_atuacao": "Tecnologia",
       "tamanho_empresa": "media",
       "status": "ativo",
       "verificada": true
     },
     {
-      "id": "e8a6a2f0-9356-4c2f-8f8f-1c3b9a0e9b12",
+      "id": "7a0b2a4a-2c1e-4b7c-9e0d-5c7d0d7a1b11",
       "nome": "Amazon Data Lab",
-      "cnpj": "12.345.678/0002-90",
-      "email_corporativo": "contato+v2@amazon-datalab.com",
+      "cnpj": "12.345.678/0001-90",
+      "email_corporativo": "contato@amazon-datalab.com",
       "senha_hash": "Temp@123456",
       "telefone": "+55 11 98888-0001",
       "cidade": "São Paulo",
@@ -36,17 +36,17 @@
       "areas_atuacao": ["Dados","Cloud Computing"],
       "beneficios_array": ["VR","VT","Plano Odontológico"],
       "tecnologias_usadas": ["Python","Airflow","Redshift","GCP"],
-      "descricao_empresa": "Consultoria em plataformas de dados e engenharia analítica.",
+      "descricao_empresa": "Consultoria especializada em plataformas de dados e engenharia analítica para empresas de médio e grande porte.",
       "setor_atuacao": "Tecnologia",
       "tamanho_empresa": "pequena",
       "status": "ativo",
       "verificada": true
     },
     {
-      "id": "9f2d7d1e-6f1a-4d9a-9a0a-2d7c2c7b2215",
+      "id": "c2e7b1a1-9b4a-4a4a-9a0a-d4bca0c7a221",
       "nome": "Mobile Manaus",
-      "cnpj": "22.222.222/0002-22",
-      "email_corporativo": "hr+v2@mobilemanaus.com",
+      "cnpj": "22.222.222/0001-22",
+      "email_corporativo": "hr@mobilemanaus.com",
       "senha_hash": "Temp@123456",
       "telefone": "+55 92 97777-2222",
       "cidade": "Manaus",
@@ -57,17 +57,17 @@
       "areas_atuacao": ["Desenvolvimento Mobile","UI/UX design"],
       "beneficios_array": ["Gympass","Plano de Saúde","Auxílio Educação"],
       "tecnologias_usadas": ["Kotlin","Swift","Flutter","Figma"],
-      "descricao_empresa": "Estúdio focado em apps móveis com forte ênfase em UX e performance.",
+      "descricao_empresa": "Estúdio focado em aplicativos móveis com forte ênfase em experiência do usuário e performance.",
       "setor_atuacao": "Tecnologia",
       "tamanho_empresa": "startup",
       "status": "ativo",
       "verificada": false
     },
     {
-      "id": "5c4a2aab-3d4f-4f9a-9a77-7d3f6aa13c33",
+      "id": "f55c0e25-b1f6-4bd5-8b2e-7cd4f6aa33c3",
       "nome": "FullStackers Brasil",
-      "cnpj": "33.333.333/0002-33",
-      "email_corporativo": "contato+v2@fullstackers.com.br",
+      "cnpj": "33.333.333/0001-33",
+      "email_corporativo": "contato@fullstackers.com.br",
       "senha_hash": "Temp@123456",
       "telefone": "+55 21 96666-3333",
       "cidade": "Rio de Janeiro",
@@ -78,7 +78,7 @@
       "areas_atuacao": ["Desenvolvimento FullStack","Devops","Cloud Computing"],
       "beneficios_array": ["VR","PLR","Plano de Saúde"],
       "tecnologias_usadas": ["Node.js","React","NestJS","Kubernetes","AWS"],
-      "descricao_empresa": "House de desenvolvimento full-stack com squads multidisciplinares.",
+      "descricao_empresa": "House de desenvolvimento full-stack com squads multidisciplinares entregando produtos fim-a-fim.",
       "setor_atuacao": "Tecnologia",
       "tamanho_empresa": "grande",
       "status": "ativo",
@@ -87,9 +87,9 @@
   ],
   "freelancers": [
     {
-      "id": "8f5a9a10-aaaa-4aaa-9aaa-b11111111111",
+      "id": "a1111111-aaaa-4aaa-9aaa-a11111111111",
       "nome": "Gabriel Dantas",
-      "email": "gabriel+v2@example.com",
+      "email": "gabriel@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "Desenvolvimento FullStack",
       "nivel_experiencia": "pleno",
@@ -99,9 +99,9 @@
       "resumo_profissional": "Dev full-stack com foco em APIs, microsserviços e front-end React."
     },
     {
-      "id": "9b6c2e22-bbbb-4bbb-9bbb-c22222222222",
+      "id": "b2222222-bbbb-4bbb-9bbb-b22222222222",
       "nome": "Laísa Oliveira",
-      "email": "laisa.oliveira+v2@example.com",
+      "email": "laisa.oliveira@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "Dados",
       "nivel_experiencia": "senior",
@@ -111,33 +111,33 @@
       "resumo_profissional": "Engenheira de dados com experiência em pipelines e modelagem dimensional."
     },
     {
-      "id": "7c4d3f33-cccc-4ccc-9ccc-d33333333333",
+      "id": "c3333333-cccc-4ccc-9ccc-c33333333333",
       "nome": "Renan Souza",
-      "email": "renan.souza+v2@example.com",
+      "email": "renan.souza@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "Desenvolvimento Backend",
       "nivel_experiencia": "pleno",
       "principais_habilidades": "Node.js, NestJS, PostgreSQL, Redis",
       "skills_array": ["Node.js","NestJS","PostgreSQL","Redis"],
       "modalidade_trabalho": "hibrido",
-      "resumo_profissional": "Back-end com foco em APIs escaláveis e mensageria."
+      "resumo_profissional": "Backender com foco em APIs escaláveis e mensageria."
     },
     {
-      "id": "6d5e4a44-dddd-4ddd-9ddd-e44444444444",
+      "id": "d4444444-dddd-4ddd-9ddd-d44444444444",
       "nome": "Vivian Costa",
-      "email": "vivian.costa+v2@example.com",
+      "email": "vivian.costa@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "UI/UX design",
       "nivel_experiencia": "senior",
       "principais_habilidades": "Figma, UX Research, Design Systems",
       "skills_array": ["Figma","UX Research","Design System"],
       "modalidade_trabalho": "remoto",
-      "resumo_profissional": "Designer experiente em produtos web/mobile e acessibilidade."
+      "resumo_profissional": "Designer experiente em produtos web/mobile e acesso universal."
     },
     {
-      "id": "5e6f5b55-eeee-4eee-9eee-f55555555555",
+      "id": "e5555555-eeee-4eee-9eee-e55555555555",
       "nome": "Lincoln Braga",
-      "email": "lincoln.braga+v2@example.com",
+      "email": "lincoln.braga@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "Devops",
       "nivel_experiencia": "especialista",
@@ -147,22 +147,22 @@
       "resumo_profissional": "Especialista em automação e plataformas de deploy."
     },
     {
-      "id": "4f7a6c66-ffff-4fff-9fff-a66666666666",
+      "id": "f6666666-ffff-4fff-9fff-f66666666666",
       "nome": "Andresa Martins",
-      "email": "andresa.martins+v2@example.com",
+      "email": "andresa.martins@example.com",
       "senha_hash": "Temp@123456",
       "area_atuacao": "Desenvolvimento Mobile",
       "nivel_experiencia": "junior",
       "principais_habilidades": "Flutter, Kotlin, Firebase",
       "skills_array": ["Flutter","Kotlin","Firebase"],
       "modalidade_trabalho": "remoto",
-      "resumo_profissional": "Mobile dev com foco em Flutter e integrações Firebase."
+      "resumo_profissional": "Mobile dev iniciando com foco em Flutter e integrações Firebase."
     }
   ],
   "vagas": [
     {
-      "id": "11111111-1111-4111-8111-111111111112",
-      "empresa_id": "b2cfd0c6-2e56-4d2e-bb6c-2b9e39d3d601",
+      "id": "11111111-1111-4111-8111-111111111111",
+      "empresa_cnpj": "00.000.636/0001-74",
       "titulo": "Desenvolvedor FullStack",
       "area_atuacao": "Desenvolvimento FullStack",
       "nivel_experiencia": "pleno",
@@ -182,13 +182,11 @@
       "skills_desejaveis": ["Docker","CI/CD"],
       "areas_relacionadas": ["Tecnologia","Desenvolvimento Web"],
       "contato_nome": "Denis",
-      "contato_email": "contato@sidi.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "contato@sidi.com.br"
     },
     {
-      "id": "22222222-2222-4222-8222-222222222223",
-      "empresa_id": "e8a6a2f0-9356-4c2f-8f8f-1c3b9a0e9b12",
+      "id": "22222222-2222-4222-8222-222222222222",
+      "empresa_cnpj": "12.345.678/0001-90",
       "titulo": "Engenheiro(a) de Dados",
       "area_atuacao": "Dados",
       "nivel_experiencia": "senior",
@@ -208,13 +206,11 @@
       "skills_desejaveis": ["GCP","dbt","Kafka"],
       "areas_relacionadas": ["Cloud Computing","Tecnologia"],
       "contato_nome": "Carla Souza",
-      "contato_email": "carla@amazon-datalab.com",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "carla@amazon-datalab.com"
     },
     {
-      "id": "33333333-3333-4333-8333-333333333334",
-      "empresa_id": "9f2d7d1e-6f1a-4d9a-9a0a-2d7c2c7b2215",
+      "id": "33333333-3333-4333-8333-333333333333",
+      "empresa_cnpj": "22.222.222/0001-22",
       "titulo": "Desenvolvedor(a) Mobile Flutter",
       "area_atuacao": "Desenvolvimento Mobile",
       "nivel_experiencia": "pleno",
@@ -234,13 +230,11 @@
       "skills_desejaveis": ["Firebase","Kotlin"],
       "areas_relacionadas": ["UI/UX design","Tecnologia"],
       "contato_nome": "Rafaela Lima",
-      "contato_email": "vagas@mobilemanaus.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "vagas@mobilemanaus.com.br"
     },
     {
-      "id": "44444444-4444-4444-8444-444444444445",
-      "empresa_id": "5c4a2aab-3d4f-4f9a-9a77-7d3f6aa13c33",
+      "id": "44444444-4444-4444-8444-444444444444",
+      "empresa_cnpj": "33.333.333/0001-33",
       "titulo": "Backend Node.js (NestJS)",
       "area_atuacao": "Desenvolvimento Backend",
       "nivel_experiencia": "senior",
@@ -260,13 +254,11 @@
       "skills_desejaveis": ["Kafka","Redis"],
       "areas_relacionadas": ["Devops","Cloud Computing"],
       "contato_nome": "João Pedro",
-      "contato_email": "joao@fullstackers.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "joao@fullstackers.com.br"
     },
     {
-      "id": "55555555-5555-4555-8555-555555555556",
-      "empresa_id": "5c4a2aab-3d4f-4f9a-9a77-7d3f6aa13c33",
+      "id": "55555555-5555-4555-8555-555555555555",
+      "empresa_cnpj": "33.333.333/0001-33",
       "titulo": "DevOps Engineer",
       "area_atuacao": "Devops",
       "nivel_experiencia": "especialista",
@@ -277,7 +269,7 @@
       "salario_minimo": 16000,
       "salario_maximo": 23000,
       "beneficios_oferecidos": "Plano Saúde, Auxílio Home Office",
-      "descricao_geral": "Construir e manter pipelines CI/CD, IaC e observabilidade.",
+      "descricao_geral": "Construir e manter pipelines CI/CD, infraestrutura como código e observabilidade.",
       "principais_responsabilidades": "Provisionar clusters, automatizar deploys, monitorar SLIs/SLOs.",
       "requisitos_obrigatorios": "Kubernetes, Terraform, AWS.",
       "requisitos_desejados": "Prometheus, Grafana, ArgoCD.",
@@ -286,13 +278,11 @@
       "skills_desejaveis": ["Prometheus","Grafana","ArgoCD"],
       "areas_relacionadas": ["Cloud Computing","Tecnologia"],
       "contato_nome": "João Pedro",
-      "contato_email": "devops@fullstackers.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "devops@fullstackers.com.br"
     },
     {
-      "id": "66666666-6666-4666-8666-666666666667",
-      "empresa_id": "b2cfd0c6-2e56-4d2e-bb6c-2b9e39d3d601",
+      "id": "66666666-6666-4666-8666-666666666666",
+      "empresa_cnpj": "00.000.636/0001-74",
       "titulo": "Frontend React",
       "area_atuacao": "Desenvolvimento Frontend",
       "nivel_experiencia": "junior",
@@ -312,13 +302,11 @@
       "skills_desejaveis": ["Next.js","Testing Library"],
       "areas_relacionadas": ["UI/UX design","Desenvolvimento Web"],
       "contato_nome": "Denis",
-      "contato_email": "denis@sidi.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "denis@sidi.com.br"
     },
     {
-      "id": "77777777-7777-4777-8777-777777777778",
-      "empresa_id": "e8a6a2f0-9356-4c2f-8f8f-1c3b9a0e9b12",
+      "id": "77777777-7777-4777-8777-777777777777",
+      "empresa_cnpj": "12.345.678/0001-90",
       "titulo": "Analista de BI",
       "area_atuacao": "Dados",
       "nivel_experiencia": "pleno",
@@ -338,13 +326,11 @@
       "skills_desejaveis": ["Python","DAX"],
       "areas_relacionadas": ["Tecnologia"],
       "contato_nome": "Carla Souza",
-      "contato_email": "carla@amazon-datalab.com",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "carla@amazon-datalab.com"
     },
     {
-      "id": "88888888-8888-4888-8888-888888888889",
-      "empresa_id": "9f2d7d1e-6f1a-4d9a-9a0a-2d7c2c7b2215",
+      "id": "88888888-8888-4888-8888-888888888888",
+      "empresa_cnpj": "22.222.222/0001-22",
       "titulo": "UI/UX Designer",
       "area_atuacao": "UI/UX design",
       "nivel_experiencia": "senior",
@@ -364,51 +350,49 @@
       "skills_desejaveis": ["Design System","Acessibilidade"],
       "areas_relacionadas": ["Desenvolvimento Web","Desenvolvimento Mobile"],
       "contato_nome": "Rafaela Lima",
-      "contato_email": "design@mobilemanaus.com.br",
-      "status": "ativo",
-      "moeda": "BRL"
+      "contato_email": "design@mobilemanaus.com.br"
     }
   ],
   "candidaturas": [
     {
-      "id": "9a9a9a9a-1111-4111-8111-aaaaaaaaaaab",
-      "vaga_id": "11111111-1111-4111-8111-111111111112",
-      "freelancer_id": "8f5a9a10-aaaa-4aaa-9aaa-b11111111111",
+      "id": "9a9a9a9a-1111-4111-8111-aaaaaaaaaaaa",
+      "id_vaga": "11111111-1111-4111-8111-111111111111",
+      "id_freelancer": "a1111111-aaaa-4aaa-9aaa-a11111111111",
       "mensagem_candidato": "Tenho 4 anos com Node + React e AWS, posso iniciar de imediato.",
       "status": "pendente"
     },
     {
-      "id": "9b9b9b9b-2222-4222-8222-bbbbbbbbbbbc",
-      "vaga_id": "22222222-2222-4222-8222-222222222223",
-      "freelancer_id": "9b6c2e22-bbbb-4bbb-9bbb-c22222222222",
+      "id": "9b9b9b9b-2222-4222-8222-bbbbbbbbbbbb",
+      "id_vaga": "22222222-2222-4222-8222-222222222222",
+      "id_freelancer": "b2222222-bbbb-4bbb-9bbb-b22222222222",
       "mensagem_candidato": "Experiência forte com Airflow e modelagem de dados em GCP.",
       "status": "pendente"
     },
     {
-      "id": "9c9c9c9c-3333-4333-8333-cccccccccccd",
-      "vaga_id": "33333333-3333-4333-8333-333333333334",
-      "freelancer_id": "4f7a6c66-ffff-4fff-9fff-a66666666666",
+      "id": "9c9c9c9c-3333-4333-8333-cccccccccccc",
+      "id_vaga": "33333333-3333-4333-8333-333333333333",
+      "id_freelancer": "f6666666-ffff-4fff-9fff-f66666666666",
       "mensagem_candidato": "Já publiquei 2 apps Flutter nas stores.",
       "status": "pendente"
     },
     {
-      "id": "9d9d9d9d-4444-4444-8444-ddddddddddde",
-      "vaga_id": "44444444-4444-4444-8444-444444444445",
-      "freelancer_id": "7c4d3f33-cccc-4ccc-9ccc-d33333333333",
+      "id": "9d9d9d9d-4444-4444-8444-dddddddddddd",
+      "id_vaga": "44444444-4444-4444-8444-444444444444",
+      "id_freelancer": "c3333333-cccc-4ccc-9ccc-c33333333333",
       "mensagem_candidato": "Domínio de NestJS e Redis, pronto para atuar.",
       "status": "pendente"
     },
     {
-      "id": "9e9e9e9e-5555-4555-8555-eeeeeeeeeeef",
-      "vaga_id": "55555555-5555-4555-8555-555555555556",
-      "freelancer_id": "5e6f5b55-eeee-4eee-9eee-f55555555555",
+      "id": "9e9e9e9e-5555-4555-8555-eeeeeeeeeeee",
+      "id_vaga": "55555555-5555-4555-8555-555555555555",
+      "id_freelancer": "e5555555-eeee-4eee-9eee-e55555555555",
       "mensagem_candidato": "K8s e Terraform no dia a dia, certificações AWS.",
       "status": "pendente"
     },
     {
-      "id": "9f9f9f9f-8888-4888-8888-fffffffffff0",
-      "vaga_id": "88888888-8888-4888-8888-888888888889",
-      "freelancer_id": "6d5e4a44-dddd-4ddd-9ddd-e44444444444",
+      "id": "9f9f9f9f-8888-4888-8888-ffffffffffff",
+      "id_vaga": "88888888-8888-4888-8888-888888888888",
+      "id_freelancer": "d4444444-dddd-4ddd-9ddd-d44444444444",
       "mensagem_candidato": "10+ anos em UX, foco em pesquisa e DS.",
       "status": "pendente"
     }

@@ -161,6 +161,7 @@ function Match_vaga() {
         limite: '12',
         min_match: '30',
       });
+      qp.append('status', 'ativa'); //filtra apenas vagas ativas
       if (filtros.area)       qp.append('area', filtros.area);
       if (filtros.nivel)      qp.append('nivel', filtros.nivel);
       if (filtros.modalidade) qp.append('modalidade', filtros.modalidade);
@@ -496,7 +497,7 @@ function Match_vaga() {
         <div className="bg-white p-6 rounded-lg shadow-md mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-4">Filtrar Vagas</h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-4">
             {/* Área */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
