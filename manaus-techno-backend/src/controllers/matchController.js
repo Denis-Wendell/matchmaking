@@ -1,8 +1,6 @@
 // src/controllers/matchController.js
 const { Op } = require('sequelize');
-const Vaga = require('../models/Vaga');
-const Freelancer = require('../models/Freelancer');
-const Candidatura = require('../models/Candidatura'); // para marcar ja_candidatado
+const { Vaga, Empresa, Freelancer, Candidatura } = require('../models');
 
 /* ===== Config IA e performance ===== */
 let openai = null;
@@ -370,6 +368,8 @@ exports.listarFreelancersComMatchDaEmpresa = async (req, res) => {
 
     // Filtros de freelancer (sem busca textual)
     const whereBase = { status: 'ativo' };
+    const whereV = { empresa_id: empresaId }; 
+    
     if (area && area !== 'todas') whereBase.area_atuacao = { [Op.iLike]: `%${area}%` };
     const mod = normalizarModalidade(modalidade); if (mod) whereBase.modalidade_trabalho = mod;
     const niv = normalizarNivel(nivel); if (niv) whereBase.nivel_experiencia = niv;
@@ -549,18 +549,22 @@ exports.listarVagasCompativeisParaFreelancer = async (req, res) => {
     const niv = normalizarNivel(nivel); if (niv) whereV.nivel_experiencia = niv;
     const tip = normalizarTipoContrato(tipo); if (tip) whereV.tipo_contrato = tip;
 
-    const vagasAll = await Vaga.findAll({
-      where: whereV,
-      attributes: [
-        'id','empresa_id','titulo','area_atuacao','nivel_experiencia','modalidade_trabalho','tipo_contrato',
-        'localizacao_texto','salario_minimo','salario_maximo','moeda',
-        'skills_obrigatorias','skills_desejaveis','habilidades_tecnicas',
-        'requisitos_obrigatorios','requisitos_desejados','descricao_geral',
-        'palavras_chave','idiomas_necessarios','status','visualizacoes','candidaturas',
-        'created_at','updated_at'
-      ],
-      order: [['created_at', 'DESC']]
-    });
+const vagasAll = await Vaga.findAll({
+  where: whereV,
+  attributes: [
+    'id','titulo','area_atuacao','nivel_experiencia','modalidade_trabalho','tipo_contrato',
+    'skills_obrigatorias','skills_desejaveis','habilidades_tecnicas',
+    'requisitos_obrigatorios','requisitos_desejados','descricao_geral',
+    'palavras_chave','idiomas_necessarios','status','created_at','updated_at'
+  ],
+  include: [{
+    model: Empresa,
+    as: 'empresa',
+    attributes: ['id','nome','cidade','estado','site_empresa','tamanho_empresa','setor_atuacao']
+  }],
+  order: [['created_at', 'DESC']]
+});
+
 
     const enumVals = Vaga.rawAttributes?.status?.values || [];
     const vagasAtivas = vagasAll.filter((v) => vagaEstaAtiva(v, enumVals));
