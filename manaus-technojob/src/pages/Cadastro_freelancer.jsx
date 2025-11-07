@@ -411,7 +411,7 @@ function CadastroFreelancer() {
               <FormField label="E-mail" type="email" value={formData.email} onChange={handleChange('email')} placeholder="seu@email.com" error={errors.email} required />
               <FormField label="Telefone" value={formData.telefone} onChange={handleChange('telefone')} placeholder="(92) 99999-9999" error={errors.telefone} />
               <FormField label="Data de Nascimento" type="date" value={formData.dataNascimento} onChange={handleChange('dataNascimento')} error={errors.dataNascimento} />
-              <FormField label="CPF" value={formData.cpf} onChange={handleChange('cpf')} placeholder="000.000.000-00" error={errors.cpf} />
+              <FormField label="CPF" value={formData.cpf} onChange={handleChange('cpf')} placeholder="000.000.000-00" error={errors.cpf} required/>
               <FormField label="Senha" type="password" value={formData.senha} onChange={handleChange('senha')} placeholder="Mínimo 6 caracteres" error={errors.senha} required />
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

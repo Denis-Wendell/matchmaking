@@ -5,6 +5,51 @@ const { Op } = require('sequelize');
 const Freelancer = require('../models/Freelancer');
 const Empresa = require('../models/Empresa');
 
+// Funções auxiliares de formatação e normalização
+const onlyDigits = (s = '') => String(s).replace(/\D+/g, '');
+
+const formatCPF = (cpfRaw = '') => {
+  const d = onlyDigits(cpfRaw).slice(0, 11);
+  if (d.length !== 11) return null;
+  return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+};
+
+const normalizeCEP = (cepRaw = '') => {
+  const d = onlyDigits(cepRaw).slice(0, 8);
+  if (d.length !== 8) return null;
+  return `${d.slice(0,5)}-${d.slice(5)}`;
+};
+
+const toDecimalString = (v) => {
+  if (v === undefined || v === null || String(v).trim() === '') return null;
+  const n = Number(String(v).replace(',', '.'));
+  if (Number.isNaN(n)) return null;
+  return n.toFixed(2);
+};
+
+const trimOrNull = (s) => {
+  if (s === undefined || s === null) return null;
+  const v = String(s).trim();
+  return v === '' ? null : v;
+};
+
+const toUF = (uf) => {
+  const v = String(uf || '').trim().toUpperCase();
+  return v.length === 2 ? v : null;
+};
+
+const toIdiomasArray = (val) => {
+  if (!val && val !== 0) return [];
+  if (Array.isArray(val)) return val.map(x => String(x).trim()).filter(Boolean);
+  return String(val).split(',').map(x => x.trim()).filter(Boolean);
+};
+
+const sanitizeSkills = (skills_array) => {
+  const arr = Array.isArray(skills_array) ? skills_array : (skills_array ? [skills_array] : []);
+  return arr.map(s => String(s).trim()).filter(Boolean);
+};
+
+
 // Gerar token JWT (suporta tipo de usuário + payload extra)
 const gerarToken = (userId, tipo = null, extraPayload = {}) => {
   const payload = {
@@ -153,56 +198,138 @@ const normalizarTamanhoEmpresa = (tamanho) => {
 const registrarFreelancer = async (req, res) => {
   try {
     console.log('📝 Dados recebidos no registro do freelancer:', req.body);
-    
+
     const {
+      // básicos/obrigatórios
       nome,
       email,
       senha,
       telefone,
+
+      // endereço
+      endereco_completo,
+      cidade,
+      estado,
+      cep,
+
+      // profissionais
+      profissao,
       area_atuacao,
       nivel_experiencia,
+      valor_hora,
+      idiomas,
+      disponibilidade,
+      modalidade_trabalho,
+      resumo_profissional,
+      experiencia_profissional,
+      objetivos_profissionais,
+
+      // formação
+      formacao_academica,
+      instituicao,
+      ano_conclusao,
+      certificacoes,
+
+      // docs/ids
+      cpf,
+      data_nascimento,
+
+      // links
+      url_portfolio,
+      linkedin,
+      github,
+
+      // skills
       principais_habilidades,
       skills_array,
-      modalidade_trabalho,
-    } = req.body;
+    } = req.body || {};
 
-    // Verificar se freelancer já existe
+    // Verificar existência por email
     const freelancerExistente = await Freelancer.findOne({ where: { email } });
     if (freelancerExistente) {
-      return res.status(400).json({
-        success: false,
-        message: 'Email já está cadastrado',
-      });
+      return res.status(400).json({ success: false, message: 'Email já está cadastrado' });
     }
 
-    // Criar freelancer
+    // ===== Normalizações pedidas =====
+    const cpfFmt  = cpf ? formatCPF(cpf) : null;
+    const cepFmt  = cep ? normalizeCEP(cep) : null;
+    const uf      = toUF(estado);
+    const vHora   = toDecimalString(valor_hora);
+    const idiomasArr = toIdiomasArray(idiomas);
+    const skillsArr  = sanitizeSkills(skills_array);
+
+    // Garante coerência com o modelo (ambos obrigatórios)
+    let principaisHab = trimOrNull(principais_habilidades);
+    if (!principaisHab && skillsArr.length) {
+      principaisHab = skillsArr.join(', ');
+    }
+
+    if (!skillsArr.length) {
+      return res.status(400).json({ success: false, message: 'Selecione ao menos uma skill.' });
+    }
+    if (!principaisHab) {
+      return res.status(400).json({ success: false, message: 'Principais habilidades são obrigatórias.' });
+    }
+
+    // Monta payload compatível com o Sequelize
     const novoFreelancer = await Freelancer.create({
-      nome,
-      email,
-      senha_hash: senha, // Será criptografada pelo hook
-      telefone,
-      area_atuacao,
-      nivel_experiencia,
-      principais_habilidades,
-      skills_array: sanitizarArray(skills_array),
+      // obrigatórios
+      nome: trimOrNull(nome),
+      email: trimOrNull(email),
+      senha_hash: trimOrNull(senha), // hook faz hash
+      area_atuacao: trimOrNull(area_atuacao),
+      nivel_experiencia: trimOrNull(nivel_experiencia),
+
+      // contato & endereço
+      telefone: trimOrNull(telefone),
+      cpf: cpfFmt,
+      data_nascimento: trimOrNull(data_nascimento),
+      endereco_completo: trimOrNull(endereco_completo),
+      cidade: trimOrNull(cidade),
+      estado: uf,
+      cep: cepFmt,
+
+      // profissionais
+      profissao: trimOrNull(profissao),
+      valor_hora: vHora,
+      idiomas: idiomasArr,
+      disponibilidade: trimOrNull(disponibilidade),
       modalidade_trabalho: normalizarModalidadeTrabalho(modalidade_trabalho),
+      resumo_profissional: trimOrNull(resumo_profissional),
+      experiencia_profissional: trimOrNull(experiencia_profissional),
+      objetivos_profissionais: trimOrNull(objetivos_profissionais),
+
+      // formação
+      formacao_academica: trimOrNull(formacao_academica),
+      instituicao: trimOrNull(instituicao),
+      ano_conclusao: String(ano_conclusao || '').trim() ? parseInt(ano_conclusao, 10) : null,
+      certificacoes: trimOrNull(certificacoes),
+
+      // links
+      url_portfolio: trimOrNull(url_portfolio),
+      linkedin: trimOrNull(linkedin),
+      github: trimOrNull(github),
+
+      // skills
+      skills_array: skillsArr,
+      principais_habilidades: principaisHab,
+
+      // status padrão
       status: 'ativo',
     });
 
-    // Gerar token (inclui freelancerId no payload)
     const token = gerarToken(novoFreelancer.id, 'freelancer', { freelancerId: novoFreelancer.id });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Freelancer cadastrado com sucesso',
       data: {
         freelancer: novoFreelancer,
         token,
         tipo: 'freelancer',
-        freelancerId: novoFreelancer.id, // conveniência no front
+        freelancerId: novoFreelancer.id,
       },
     });
-
   } catch (error) {
     console.error('Erro no registro do freelancer:', error);
     return tratarErrosSequelize(error, res);
