@@ -328,7 +328,7 @@ const detalhesCandidatura = async (req, res) => {
             'id', 'nome', 'email', 'telefone', 'area_atuacao', 'nivel_experiencia',
             'modalidade_trabalho', 'principais_habilidades', 'skills_array',
             'resumo_profissional', 'experiencia_profissional', 'formacao_academica',
-            'url_portfolio', 'linkedin', 'github', 'cidade', 'estado'
+            'url_portfolio', 'linkedin', 'github', 'cidade', 'estado', 'disponibilidade', 'certificacoes', 'objetivos_profissionais', 'idiomas', 'ano_conclusao', 'instituicao'
           ],
           required: true
         }
