@@ -1,0 +1,19 @@
+version: "3.9"
+
+services:
+  backend:
+    build: ./manaus-techno-backend
+    container_name: manaus-techno-backend
+    env_file:
+      - ./manaus-techno-backend/.env
+    ports:
+      - "3001:3001"
+    # Se depois você usar Postgres em container, dá pra adicionar depends_on aqui
+
+  frontend:
+    build: ./manaus-technojob
+    container_name: manaus-techno-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
