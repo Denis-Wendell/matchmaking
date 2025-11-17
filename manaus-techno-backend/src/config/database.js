@@ -1,5 +1,28 @@
+const fs = require('fs');
 const { Sequelize } = require('sequelize');
 require('dotenv').config();
+
+/**
+ * Ordem de prioridade:
+ * 1) Arquivo (DB_PASS_FILE / DB_PASSWORD_FILE) -> usado em produção/Docker
+ * 2) DB_PASSWORD ou DB_PASS -> usado no desenvolvimento local
+ */
+function getDbPassword() {
+  const filePath = process.env.DB_PASS_FILE || process.env.DB_PASSWORD_FILE;
+  if (filePath) {
+    try {
+      const pwd = fs.readFileSync(filePath, 'utf8').trim();
+      return pwd;
+    } catch (err) {
+      console.error('Erro ao ler arquivo de senha do banco:', err.message);
+    }
+  }
+
+  if (process.env.DB_PASSWORD) return process.env.DB_PASSWORD;
+  if (process.env.DB_PASS) return process.env.DB_PASS;
+
+  return '';
+}
 
 // Configuração da conexão com PostgreSQL
 const sequelize = new Sequelize({
@@ -7,7 +30,7 @@ const sequelize = new Sequelize({
   port: process.env.DB_PORT,
   database: process.env.DB_NAME,
   username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  password: getDbPassword(),
   dialect: 'postgres',
   logging: process.env.NODE_ENV === 'development' ? console.log : false,
   pool: {
@@ -23,7 +46,6 @@ const sequelize = new Sequelize({
   },
 });
 
-// Função para testar a conexão
 const testConnection = async () => {
   try {
     await sequelize.authenticate();

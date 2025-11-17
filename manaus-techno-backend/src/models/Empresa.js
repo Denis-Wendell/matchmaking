@@ -78,7 +78,7 @@ const Empresa = sequelize.define('Empresa', {
     },
   },
   localizacao: {
-    type: DataTypes.GEOGRAPHY('POINT'),
+    type: DataTypes.STRING, // exemplo: "-3.118, -60.021" ou "Manaus - AM"
     allowNull: true,
   },
   setor_atuacao: {

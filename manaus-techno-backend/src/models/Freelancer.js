@@ -78,9 +78,10 @@ const Freelancer = sequelize.define('Freelancer', {
       },
     },
   },
-localizacao: {
-  type: DataTypes.GEOGRAPHY('POINT'),
-  allowNull: true,
+  localizacao: {
+    type: DataTypes.STRING, // ex: "-3.118, -60.021"
+    allowNull: true,
+    comment: 'Coordenadas latitude,longitude em texto',
   },
   profissao: {
     type: DataTypes.STRING(255),

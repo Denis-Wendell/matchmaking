@@ -1,19 +1,54 @@
 version: "3.9"
 
 services:
+  db:
+    image: postgres:16-alpine
+    container_name: manaus-techno-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: manaus_techno_job
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    secrets:
+      - pg_password
+
   backend:
     build: ./manaus-techno-backend
     container_name: manaus-techno-backend
+    restart: unless-stopped
     env_file:
       - ./manaus-techno-backend/.env
+    environment:
+      NODE_ENV: production
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: manaus_techno_job
+      DB_USER: postgres
+      DB_PASS_FILE: /run/secrets/pg_password
+      CORS_ORIGIN: http://localhost:5173
     ports:
       - "3001:3001"
-    # Se depois você usar Postgres em container, dá pra adicionar depends_on aqui
+    depends_on:
+      - db
+    secrets:
+      - pg_password
 
   frontend:
     build: ./manaus-technojob
     container_name: manaus-techno-frontend
+    restart: unless-stopped
     ports:
       - "5173:80"
     depends_on:
       - backend
+
+volumes:
+  pg_data:
+
+secrets:
+  pg_password:
+    file: ./manaus-techno-backend/secrets/postgres_password.txt

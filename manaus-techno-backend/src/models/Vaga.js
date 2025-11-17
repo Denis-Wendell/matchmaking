@@ -59,10 +59,10 @@ const Vaga = sequelize.define('Vaga', {
       notEmpty: { msg: 'Localização é obrigatória' },
     },
   },
-localizacao: {
-  type: DataTypes.GEOGRAPHY('POINT'),
+  localizacao: {
+  type: DataTypes.STRING, // exemplo: "-3.118, -60.021" ou "Manaus - AM"
   allowNull: true,
-  },
+},
   quantidade_vagas: {
     type: DataTypes.INTEGER,
     allowNull: true,
