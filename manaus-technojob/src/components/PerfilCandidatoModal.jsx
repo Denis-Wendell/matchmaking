@@ -30,7 +30,7 @@ export default function PerfilCandidatoModal({
   vagaId,         // opcional: UUID da vaga
   vaga,           // opcional: objeto da vaga já carregado
   fetchVaga = true,
-  apiBase = 'http://localhost:3001',
+  apiBase = '${API_BASE_URL}',
 }) {
   // Resolve o objeto freelancer independentemente da forma vinda
   const f = (candidatura && candidatura.freelancer) ? candidatura.freelancer : (freelancer || {}) ;

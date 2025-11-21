@@ -161,7 +161,7 @@ function Perfil_freelancer() {
       if (payload.areas_interesse) payload.areas_interesse = toArray(payload.areas_interesse);
 
       // Chamada API — ajuste se seu endpoint for outro
-      const res = await fetch('http://localhost:3001/api/freelancers/me/perfil', {
+      const res = await fetch('${API_BASE_URL}/api/freelancers/me/perfil', {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

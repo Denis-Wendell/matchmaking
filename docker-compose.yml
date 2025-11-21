@@ -9,8 +9,9 @@ services:
       POSTGRES_DB: manaus_techno_job
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD_FILE: /run/secrets/pg_password
-    ports:
-      - "5432:5432"
+    # EM PRODUÇÃO você pode comentar essa linha para não expor o banco:
+    # ports:
+    #   - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     secrets:
@@ -22,6 +23,8 @@ services:
     restart: unless-stopped
     env_file:
       - ./manaus-techno-backend/.env
+      # Se tiver um .env.production, pode usar ele aqui:
+      # - ./manaus-techno-backend/.env.production
     environment:
       NODE_ENV: production
       DB_HOST: db
@@ -29,9 +32,11 @@ services:
       DB_NAME: manaus_techno_job
       DB_USER: postgres
       DB_PASS_FILE: /run/secrets/pg_password
-      CORS_ORIGIN: http://localhost:5173
-    ports:
-      - "3001:3001"
+      # IMPORTANTE: CORS liberando só o domínio de produção
+      CORS_ORIGIN: https://mantechnojob.site
+    # Em produção, o backend não precisa ficar exposto diretamente:
+    # ports:
+    #   - "3001:3001"
     depends_on:
       - db
     secrets:
@@ -42,7 +47,7 @@ services:
     container_name: manaus-techno-frontend
     restart: unless-stopped
     ports:
-      - "5173:80"
+      - "80:80"  # frontend acessível na porta 80 (HTTP padrão)
     depends_on:
       - backend
 

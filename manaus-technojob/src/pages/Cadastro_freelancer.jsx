@@ -301,7 +301,7 @@ function CadastroFreelancer() {
       };
 
       // Chamada para API
-      const response = await fetch('http://localhost:3001/api/auth/registrar', {
+      const response = await fetch('${API_BASE_URL}/api/auth/registrar', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiData),

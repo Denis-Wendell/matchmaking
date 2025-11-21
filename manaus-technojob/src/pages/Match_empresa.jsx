@@ -59,7 +59,7 @@ async function resolveEmpresaId() {
   const token = localStorage.getItem('authToken');
   if (!token) return null;
   try {
-    const r = await fetch('http://localhost:3001/api/auth/verificar', {
+    const r = await fetch('${API_BASE_URL}/api/auth/verificar', {
       headers: { Authorization: `Bearer ${token}` },
     });
     const j = await r.json();
@@ -136,7 +136,7 @@ export default function Match_empresa() {
         return;
       }
       const token = localStorage.getItem('authToken');
-      const resp = await fetch(`http://localhost:3001/api/freelancers/${freelancerId}/curriculo.pdf`, {
+      const resp = await fetch(`${API_BASE_URL}/api/freelancers/${freelancerId}/curriculo.pdf`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!resp.ok) {
@@ -189,7 +189,7 @@ export default function Match_empresa() {
         setLoading(true);
         setError('');
 
-        const url = new URL(`http://localhost:3001/api/empresas/${empresaId}/matches`);
+        const url = new URL(`${API_BASE_URL}/api/empresas/${empresaId}/matches`);
         url.searchParams.set('pagina', String(paginacao.pagina));
         url.searchParams.set('limite', String(paginacao.limite));
 
@@ -262,7 +262,7 @@ export default function Match_empresa() {
         await Promise.all(
           ids.map(async (id) => {
             try {
-              const r = await fetch(`http://localhost:3001/api/vagas/${id}`, {
+              const r = await fetch(`${API_BASE_URL}/api/vagas/${id}`, {
                 headers: token ? { Authorization: `Bearer ${token}` } : {}
               });
               const j = await r.json();

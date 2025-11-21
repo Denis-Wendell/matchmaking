@@ -87,7 +87,7 @@ function Vagas_cadastrada_empresa() {
         limite: 10
       });
 
-      const response = await fetch(`http://localhost:3001/api/vagas/empresa/minhas?${queryParams}`, {
+      const response = await fetch(`${API_BASE_URL}/api/vagas/empresa/minhas?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -120,7 +120,7 @@ function Vagas_cadastrada_empresa() {
       setAcaoLoading(true);
       const token = localStorage.getItem('authToken');
 
-      const response = await fetch(`http://localhost:3001/api/vagas/${vagaId}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/vagas/${vagaId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -159,7 +159,7 @@ function Vagas_cadastrada_empresa() {
       setCandidatos([]);
 
       const token = localStorage.getItem('authToken');
-      const resp = await fetch(`http://localhost:3001/api/candidaturas/vaga/${vaga.id}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/candidaturas/vaga/${vaga.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -187,7 +187,7 @@ function Vagas_cadastrada_empresa() {
       setCandidaturaSelecionada(null);
 
       const token = localStorage.getItem('authToken');
-      const resp = await fetch(`http://localhost:3001/api/candidaturas/empresa/${candidaturaId}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/candidaturas/empresa/${candidaturaId}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -214,7 +214,7 @@ function Vagas_cadastrada_empresa() {
     setVagaDetalhes(null);
 
     try {
-      const resp = await fetch(`http://localhost:3001/api/vagas/${vaga.id}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/vagas/${vaga.id}`, {
         headers: { 'Content-Type': 'application/json' }
       });
       const json = await resp.json();

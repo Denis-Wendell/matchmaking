@@ -115,7 +115,7 @@ function Match_vaga() {
     if (!freelancerData?.id) return;
     try {
       const token = localStorage.getItem('authToken');
-      await fetch(`http://localhost:3001/api/freelancers/${freelancerData.id}/favoritos`, {
+      await fetch(`${API_BASE_URL}/api/freelancers/${freelancerData.id}/favoritos`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -169,7 +169,7 @@ function Match_vaga() {
       if (aiOn)               qp.append('ai', 'on');
       if (llmOn)              qp.append('llm', 'on');
 
-      const vagasUrl = `http://localhost:3001/api/freelancers/${freelancerData.id}/matches?${qp.toString()}`;
+      const vagasUrl = `${API_BASE_URL}/api/freelancers/${freelancerData.id}/matches?${qp.toString()}`;
       const vagasResp = await fetch(vagasUrl, {
         headers: {
           'Content-Type': 'application/json',
@@ -211,7 +211,7 @@ function Match_vaga() {
       // 3) (Opcional/robusto) Tenta buscar candidaturas do usuário para assegurar o status
       let fromApi = new Set();
       try {
-        const cUrl = `http://localhost:3001/api/freelancers/${freelancerData.id}/candidaturas`;
+        const cUrl = `${API_BASE_URL}/api/freelancers/${freelancerData.id}/candidaturas`;
         const cResp = await fetch(cUrl, {
           headers: {
             'Content-Type': 'application/json',
@@ -296,7 +296,7 @@ function Match_vaga() {
         mensagem_candidato: mensagemCandidatura.trim()
       };
 
-      const response = await fetch('http://localhost:3001/api/candidaturas', {
+      const response = await fetch('${API_BASE_URL}/api/candidaturas', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -363,7 +363,7 @@ function Match_vaga() {
     setModalDetalhes(true);
 
     try {
-      const response = await fetch(`http://localhost:3001/api/vagas/${vaga.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/vagas/${vaga.id}`, {
         headers: { 'Content-Type': 'application/json' }
       });
 

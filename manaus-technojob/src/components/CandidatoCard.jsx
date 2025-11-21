@@ -34,7 +34,7 @@ export default function CandidatoCard({
       }
 
       const token = localStorage.getItem('authToken');
-      const resp = await fetch(`http://localhost:3001/api/freelancers/${freelancerId}/curriculo.pdf`, {
+      const resp = await fetch(`${API_BASE_URL}/api/freelancers/${freelancerId}/curriculo.pdf`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
 

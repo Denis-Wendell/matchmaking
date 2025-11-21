@@ -133,7 +133,7 @@ export default function VagaEditarModal({
     (async () => {
       try {
         setLoading(true);
-        const resp = await fetch(`http://localhost:3001/api/vagas/${vagaId}`);
+        const resp = await fetch(`${API_BASE_URL}/api/vagas/${vagaId}`);
         const json = await resp.json();
         if (resp.ok && json.success) {
           setVaga(json.data);
@@ -233,7 +233,7 @@ export default function VagaEditarModal({
       };
 
       // supondo que seu backend tenha PUT (ou PATCH) /api/vagas/:id para edição
-      const resp = await fetch(`http://localhost:3001/api/vagas/${vagaId}`, {
+      const resp = await fetch(`${API_BASE_URL}/api/vagas/${vagaId}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,

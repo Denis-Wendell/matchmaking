@@ -161,7 +161,7 @@ function CadastroEmpresa() {
       console.log('🏢 Enviando dados para API:', apiData);
 
       // Chamada para API de cadastro de empresa
-      const response = await fetch('http://localhost:3001/api/auth/registrar-empresa', {
+      const response = await fetch('${API_BASE_URL}/api/auth/registrar-empresa', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

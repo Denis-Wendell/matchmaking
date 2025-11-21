@@ -415,7 +415,7 @@ function CadastroVaga() {
       };
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch('http://localhost:3001/api/vagas', {
+      const response = await fetch('${API_BASE_URL}/api/vagas', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(dadosVaga)

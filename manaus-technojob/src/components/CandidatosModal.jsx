@@ -90,7 +90,7 @@ export default function CandidatosModal({
         )
       );
 
-      const res = await fetch(`http://localhost:3001/api/candidaturas/${candidaturaId}/status`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidaturas/${candidaturaId}/status`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,

@@ -1,10 +1,9 @@
-# ===== STAGE 1: build =====
+# ===== STAGE 1: BUILD =====
 FROM node:20-alpine AS build
 
-# Criar diretório de trabalho dentro do container
 WORKDIR /usr/src/app
 
-# Copiar apenas os manifests primeiro (aproveitar cache)
+# Copiar apenas o package.json para aproveitar cache
 COPY package*.json ./
 
 # Instalar dependências
@@ -13,17 +12,18 @@ RUN npm install
 # Copiar o restante do código
 COPY . .
 
-# Gerar build de produção (Vite geralmente gera em /dist)
+# Gerar build de produção
 RUN npm run build
 
-# ===== STAGE 2: servidor Nginx só com os arquivos estáticos =====
+# ===== STAGE 2: NGINX SERVING STATIC FILES =====
 FROM nginx:alpine
 
-# Copiar o build gerado para a pasta pública do Nginx
+# Copiar o build gerado para a pasta de conteúdo estático
 COPY --from=build /usr/src/app/dist /usr/share/nginx/html
 
-# Expor a porta padrão do Nginx
+# Copiar configuração customizada do Nginx (ESSENCIAL!)
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
 EXPOSE 80
 
-# Comando para subir o Nginx em foreground
 CMD ["nginx", "-g", "daemon off;"]

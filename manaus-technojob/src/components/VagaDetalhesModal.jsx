@@ -18,7 +18,7 @@ export default function VagaDetalhesModal({
       if (!open || !id) return;
       try {
         setLoading(true);
-        const res = await fetch(`http://localhost:3001/api/vagas/${id}`, {
+        const res = await fetch(`${API_BASE_URL}/api/vagas/${id}`, {
           headers: { 'Content-Type': 'application/json' },
         });
         const json = await res.json();

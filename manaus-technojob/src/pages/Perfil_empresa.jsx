@@ -97,7 +97,7 @@ function Perfil_empresa() {
           .split(',').map(item => item.trim()).filter(item => item);
       }
 
-      const response = await fetch(`http://localhost:3001/api/empresas/me/perfil`, {
+      const response = await fetch(`${API_BASE_URL}/api/empresas/me/perfil`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -139,7 +139,7 @@ function Perfil_empresa() {
       const token = localStorage.getItem('authToken');
       if (!token) return;
 
-      const response = await fetch(`http://localhost:3001/api/vagas/empresa/minhas?status=todas&pagina=1&limite=50`, {
+      const response = await fetch(`${API_BASE_URL}/api/vagas/empresa/minhas?status=todas&pagina=1&limite=50`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -169,7 +169,7 @@ function Perfil_empresa() {
         navigate('/login');
         return;
       }
-      const res = await fetch(`http://localhost:3001/api/candidaturas/vaga/${vaga.id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidaturas/vaga/${vaga.id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -199,7 +199,7 @@ function Perfil_empresa() {
         navigate('/login');
         return;
       }
-      const res = await fetch(`http://localhost:3001/api/candidaturas/empresa/${candidaturaId}`, {
+      const res = await fetch(`${API_BASE_URL}/api/candidaturas/empresa/${candidaturaId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

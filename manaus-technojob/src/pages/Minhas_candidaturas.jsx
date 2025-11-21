@@ -69,7 +69,7 @@ function Minhas_candidaturas() {
         limite: 10
       });
 
-      const response = await fetch(`http://localhost:3001/api/candidaturas/minhas?${queryParams}`, {
+      const response = await fetch(`${API_BASE_URL}/api/candidaturas/minhas?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
@@ -106,7 +106,7 @@ function Minhas_candidaturas() {
     try {
       const token = localStorage.getItem('authToken');
 
-      const response = await fetch(`http://localhost:3001/api/candidaturas/${candidaturaId}`, {
+      const response = await fetch(`${API_BASE_URL}/api/candidaturas/${candidaturaId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -136,7 +136,7 @@ function Minhas_candidaturas() {
     
     try {
       // Buscar dados completos da vaga na API
-      const response = await fetch(`http://localhost:3001/api/vagas/${vaga.id}`, {
+      const response = await fetch(`${API_BASE_URL}/api/vagas/${vaga.id}`, {
         headers: {
           'Content-Type': 'application/json'
         }
