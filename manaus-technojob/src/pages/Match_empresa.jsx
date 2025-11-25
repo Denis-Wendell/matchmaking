@@ -12,6 +12,7 @@ import {
   computeMatchDetailed, // usamos a mesma função do modal
 } from '../utils/matchEmpresaFreelancer';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
+import { API_BASE_URL } from '../services/api'
 
 // ===== helpers de normalização =====
 function removeAcentos(s = '') {
@@ -59,7 +60,7 @@ async function resolveEmpresaId() {
   const token = localStorage.getItem('authToken');
   if (!token) return null;
   try {
-    const r = await fetch('${API_BASE_URL}/api/auth/verificar', {
+    const r = await fetch(`${API_BASE_URL}/api/auth/verificar`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const j = await r.json();
@@ -69,7 +70,8 @@ async function resolveEmpresaId() {
       localStorage.setItem('authEmpresaId', id);
       return id;
     }
-  } catch (_) {}
+
+  } catch (error) { console.error(error); }
   return null;
 }
 
@@ -107,8 +109,7 @@ export default function Match_empresa() {
   const [vagaIdSelecionada, setVagaIdSelecionada] = useState(null); // (novo)
 
   // Painel de debug para alinhar empresaId
-  const [showDebug, setShowDebug] = useState(false);
-  const [empresaIdEdit, setEmpresaIdEdit] = useState('');
+  const [setEmpresaIdEdit] = useState('');
 
   const abrirPerfil = (f) => {
     setPerfilError('');
@@ -148,7 +149,7 @@ export default function Match_empresa() {
       const slug = (nome || 'freelancer')
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, '-').toLowerCase()
-        .replace(/[^a-z0-9\-]/g, '');
+        .replace(/[^a-z0-9-]/g, '');
       const a = document.createElement('a');
       a.href = url;
       a.download = `curriculo-${slug}.pdf`;
@@ -173,7 +174,7 @@ export default function Match_empresa() {
       }
     })();
     return () => { mounted = false; };
-  }, []);
+  }, [setEmpresaIdEdit]);
 
   // busca lista
   useEffect(() => {
@@ -269,7 +270,7 @@ export default function Match_empresa() {
               if (r.ok && j?.success && j?.data) {
                 vagasMap[id] = j.data;
               }
-            } catch {}
+            } catch { /* empty */ }
           })
         );
 
@@ -282,7 +283,7 @@ export default function Match_empresa() {
             if (Number.isFinite(d?.score)) {
               novo[f.id] = Math.round(d.score);
             }
-          } catch {}
+          } catch { /* empty */ }
         }
 
         if (!cancel && Object.keys(novo).length > 0) {

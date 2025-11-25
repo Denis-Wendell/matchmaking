@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import FreelancerEditModal from '../components/FreelancerEditModal';
+import { API_BASE_URL } from '../services/api'
 
 function Perfil_freelancer() {
   const navigate = useNavigate();
@@ -161,7 +162,7 @@ function Perfil_freelancer() {
       if (payload.areas_interesse) payload.areas_interesse = toArray(payload.areas_interesse);
 
       // Chamada API — ajuste se seu endpoint for outro
-      const res = await fetch('${API_BASE_URL}/api/freelancers/me/perfil', {
+      const res = await fetch(`${API_BASE_URL}/api/freelancers/me/perfil`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -185,13 +186,6 @@ function Perfil_freelancer() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('freelancerData');
-    localStorage.removeItem('userType');
-    localStorage.removeItem('isLoggedIn');
-    navigate('/login');
-  };
 
   if (loading) {
     return (

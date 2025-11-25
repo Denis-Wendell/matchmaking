@@ -5,6 +5,7 @@ import {
   buildPrincipaisHabilidadesDisplay,
 } from '../utils/freelaFormat';
 import { computeMatchDetailed } from '../utils/matchEmpresaFreelancer';
+import { API_BASE_URL } from '../services/api'
 
 const normKey = (s) =>
   String(s || '')
@@ -30,9 +31,10 @@ export default function PerfilCandidatoModal({
   vagaId,         // opcional: UUID da vaga
   vaga,           // opcional: objeto da vaga já carregado
   fetchVaga = true,
-  apiBase = '${API_BASE_URL}',
+  apiBase = API_BASE_URL,
 }) {
   // Resolve o objeto freelancer independentemente da forma vinda
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const f = (candidatura && candidatura.freelancer) ? candidatura.freelancer : (freelancer || {}) ;
 
   const [vagaRef, setVagaRef] = useState(vaga || null);
@@ -41,6 +43,7 @@ export default function PerfilCandidatoModal({
   const [diagError, setDiagError] = useState('');
 
   // Helpers defensivos (evitam falhas em páginas que não passaram tudo)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   let cleanSkills = [];
   let principaisDisplay = '';
   try {
@@ -358,7 +361,7 @@ function TextBlock({ title, text }) {
   );
 }
 function DiagCard({ title, item, faltantes }) {
-  const peso = item?.peso;
+ 
   const label = item?.label || '—';
 
   return (

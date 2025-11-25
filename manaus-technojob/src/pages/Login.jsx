@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { performLogin } from "../utils/authUtils";
+import { API_BASE_URL } from '../services/api'
 
 export default function Login() {
   const nav = useNavigate();
@@ -31,7 +32,7 @@ export default function Login() {
 
     try {
       // Primeiro, tentar como freelancer
-      let response = await fetch('${API_BASE_URL}/api/auth/login', {
+      let response = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -47,7 +48,7 @@ export default function Login() {
 
       // Se não encontrou como freelancer, tenta como empresa
       if (!response.ok && response.status === 401 && result.message === 'Credenciais inválidas') {
-        response = await fetch('${API_BASE_URL}/api/auth/login', {
+        response = await fetch(`${API_BASE_URL}/api/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

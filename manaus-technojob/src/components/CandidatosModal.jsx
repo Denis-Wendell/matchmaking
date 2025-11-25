@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import CandidatoCard from './CandidatoCard';
 import { computeMatchDetailed } from '../utils/matchEmpresaFreelancer';
+import { API_BASE_URL } from '../services/api'
 
 const STATUS_OPCOES = [
   { value: 'interessado', label: 'Interessado' },

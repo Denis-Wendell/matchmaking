@@ -7,6 +7,7 @@ import CandidatosModal from '../components/CandidatosModal';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
 import VagaDetalhesModal from '../components/VagaDetalhesModal';
 import VagaEditarModal from '../components/VagaEditarModal';
+import { API_BASE_URL } from '../services/api'
 
 function Vagas_cadastrada_empresa() {
   const navigate = useNavigate();

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { API_BASE_URL } from '../services/api'
 
 // Badge simpático para status
 const statusBadge = (status = 'pendente') => {
@@ -50,7 +51,7 @@ export default function CandidatoCard({
       const slug = (nome || 'freelancer')
         .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .replace(/\s+/g, '-').toLowerCase()
-        .replace(/[^a-z0-9\-]/g, '');
+        .replace(/[^a-z0-9-]/g, '');
 
       const a = document.createElement('a');
       a.href = url;

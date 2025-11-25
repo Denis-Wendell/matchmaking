@@ -5,6 +5,7 @@ import {
   computeMatchDetailed,
   computeMatch, // fallback final
 } from '../utils/matchEmpresaFreelancer';
+import { API_BASE_URL } from '../services/api';
 
 function Match_vaga() {
   const navigate = useNavigate();
@@ -107,7 +108,7 @@ function Match_vaga() {
     if (!FAV_KEY) return;
     try {
       localStorage.setItem(FAV_KEY, JSON.stringify(Array.from(vagasSalvas)));
-    } catch {}
+    } catch { /* empty */ }
   }, [vagasSalvas, FAV_KEY]);
 
   // (Opcional) Sincronizar com backend, se existir este endpoint
@@ -267,8 +268,7 @@ function Match_vaga() {
             if (Number.isFinite(d?.score)) {
               novo[v.id] = Math.round(d.score);
             }
-          } catch (_) {
-            // ignora falha individual
+          } catch (error_) {console.error(error_); 
           }
         }
         if (!cancel) {
@@ -296,7 +296,7 @@ function Match_vaga() {
         mensagem_candidato: mensagemCandidatura.trim()
       };
 
-      const response = await fetch('${API_BASE_URL}/api/candidaturas', {
+      const response = await fetch(`${API_BASE_URL}/api/candidaturas`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

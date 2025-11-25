@@ -1,5 +1,6 @@
 // src/components/VagaDetalhesModal.jsx
 import React, { useEffect, useState } from 'react';
+import { API_BASE_URL } from '../services/api'
 
 export default function VagaDetalhesModal({
   open,

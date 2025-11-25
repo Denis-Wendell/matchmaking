@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 // componentes (substituem os blocos HTML dos modais)
 import CandidatosModal from '../components/CandidatosModal';
 import PerfilCandidatoModal from '../components/PerfilCandidatoModal';
+import { API_BASE_URL } from '../services/api'
 
 function Perfil_empresa() {
   const navigate = useNavigate();
@@ -247,15 +248,6 @@ function Perfil_empresa() {
     return labels[status] || status || 'Ativa';
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      'ativa': 'bg-green-100 text-green-800',
-      'inativa': 'bg-red-100 text-red-800',
-      'pendente': 'bg-yellow-100 text-yellow-800',
-      'bloqueada': 'bg-red-100 text-red-800'
-    };
-    return colors[status] || 'bg-green-100 text-green-800';
-  };
 
   const getTamanhoEmpresaLabel = (tamanho) => {
     const labels = {
@@ -268,11 +260,7 @@ function Perfil_empresa() {
     return labels[tamanho] || tamanho || 'Não informado';
   };
 
-  const tabs = [
-    { id: 'informacoes', label: 'Informações da Empresa' },
-    { id: 'vagas', label: 'Vagas Publicadas' },
-    { id: 'contato', label: 'Contato' }
-  ];
+ 
 
   // useEffects
   useEffect(() => {

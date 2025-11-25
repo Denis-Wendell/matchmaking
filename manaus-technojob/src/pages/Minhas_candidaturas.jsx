@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_BASE_URL } from '../services/api'
 
 function Minhas_candidaturas() {
   const navigate = useNavigate();
@@ -160,14 +161,6 @@ function Minhas_candidaturas() {
     }
   };
 
-  // Ver detalhes da candidatura (implementação simples)
-  const verDetalhesCandidatura = (candidaturaId) => {
-    // OPÇÃO 1: Se você tem uma página específica para isso
-    // navigate(`/candidatura/${candidaturaId}`);
-    
-    // OPÇÃO 2: Por enquanto, mostra um alert com o ID
-    alert(`Detalhes da candidatura ${candidaturaId} (funcionalidade em desenvolvimento)`);
-  };
 
   // Função para salvar vaga
   const handleSalvarVaga = (vaga) => {

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { API_BASE_URL } from '../services/api'
 
 const Contact = ({ onSubmit }) => {
   const sectionRef = useRef(null);
@@ -78,7 +79,7 @@ const Contact = ({ onSubmit }) => {
         await onSubmit(form);
       } else {
         // 2) Padrão: tenta um endpoint local. Ajuste se já tiver um backend.
-        const resp = await fetch('${API_BASE_URL}/api/contato', {
+        const resp = await fetch(`${API_BASE_URL}/api/contato`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(form),

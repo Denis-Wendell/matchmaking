@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import FormField from '../components/FormField';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { API_BASE_URL } from '../services/api'
 
 /* ========================== Catálogo de Skills (igual ao cadastro do freelancer) ========================== */
 const SKILLS_OPTIONS = [
@@ -415,7 +416,7 @@ function CadastroVaga() {
       };
 
       const token = localStorage.getItem('authToken');
-      const response = await fetch('${API_BASE_URL}/api/vagas', {
+      const response = await fetch(`${API_BASE_URL}/api/vagas`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(dadosVaga)

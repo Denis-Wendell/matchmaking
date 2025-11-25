@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import FormField from '../components/FormField';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import { API_BASE_URL } from '../services/api'
 
 /* ========================== Catálogo de Skills ========================== */
 /* Você pode editar/expandir esta lista. Os valores são enviados ao backend. */
@@ -301,7 +302,7 @@ function CadastroFreelancer() {
       };
 
       // Chamada para API
-      const response = await fetch('${API_BASE_URL}/api/auth/registrar', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/registrar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(apiData),

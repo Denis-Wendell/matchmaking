@@ -1,5 +1,6 @@
 // src/components/VagaEditarModal.jsx
 import React, { useEffect, useMemo, useState } from 'react';
+import { API_BASE_URL } from '../services/api'
 
 export default function VagaEditarModal({
   open,

@@ -6,6 +6,7 @@ import FormField from '../components/FormField';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { Navigate } from 'react-router-dom';
+import { API_BASE_URL } from '../services/api'
 
 function CadastroEmpresa() {
   const Navigate = useNavigate();
@@ -161,7 +162,7 @@ function CadastroEmpresa() {
       console.log('🏢 Enviando dados para API:', apiData);
 
       // Chamada para API de cadastro de empresa
-      const response = await fetch('${API_BASE_URL}/api/auth/registrar-empresa', {
+      const response = await fetch(`${API_BASE_URL}/api/auth/registrar-empresa`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
