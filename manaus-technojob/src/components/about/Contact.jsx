@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { API_BASE_URL } from '../services/api'
+import { API_BASE_URL } from '../../services/api'
 
 const Contact = ({ onSubmit }) => {
   const sectionRef = useRef(null);
